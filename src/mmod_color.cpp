@@ -8,6 +8,7 @@
  */
 #include "mmod_color.h"
 #include <iostream>
+#include <stdexcept>
 
 using namespace cv;
 using namespace std;
@@ -327,18 +328,18 @@ using namespace std;
 		if (!Mask.empty()) //We have a mask
 		{
 			if (Iin.size() != Mask.size()) {
-				cerr << "ERROR: Mask in computeColorOrder size != Iina" << endl;
-				return;
+				throw std::logic_error("ERROR: Mask in computeDepthWTA size != Iina");
 			}
 			if (Mask.type() == CV_8UC3) {
 				//don't write into the Mask, as its supposed to be const.
 				cv::cvtColor(Mask, temp, CV_RGB2GRAY);
-//				Mask = temp;
 			}
-			else temp = Mask;
-			if (Mask.type() != CV_8UC1) {
-				cerr << "ERROR: Mask is not of type CV_8UC1 in computeColorOrder" << endl;
-			}
+			else
+			  temp = Mask;
+		}
+		if(Iin.type() != CV_16UC1)
+		{
+		  throw std::logic_error("You must convert the depth map to CV_16UC1 for computeDepthWTA");
 		}
 		GaussianBlur(Iin, Idst, Size(5,5), 2);
 		ushort vals[8];
