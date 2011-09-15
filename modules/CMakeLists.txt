@@ -1,6 +1,8 @@
 find_package(ecto)
-if(NOT ECTO_FOUND)
-    message(STATUS "Ecto was not found, so disabling ecto cells")
+
+if(NOT ecto_FOUND)
+  message(STATUS "Ecto was not found, so disabling ecto cells")
+  return()
 endif()
 
 find_package(OpenCV REQUIRED )
