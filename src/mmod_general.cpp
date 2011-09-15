@@ -595,12 +595,13 @@ mmod_general::mmod_general()
 	 * @param Mask		  Mask 8U_C1 of where the object is
 	 * @param framenum	  frame number of this view
 	 * @param features	  this will hold our learned template
+	 * @param clean		  If true, do a 3x3 max filter to the features. Default is false
 	 * @return index of template learned in features variable.
 	 */
-	int mmod_general::learn_a_template(Mat &Ifeatures,  Mat &Mask, int framenum, mmod_features &features )
+	int mmod_general::learn_a_template(Mat &Ifeatures,  Mat &Mask, int framenum, mmod_features &features, bool clean)
 	{
-		cout << "Turned off SumAroundPixel. general::learn_a_template, At start: features.features.size() = " << features.features.size() << endl;
-//debug		SumAroundEachPixel8UC1(Ifeatures, Ifeatures, 3, 1); //This sets the middle pixel (if it's not 0) to the max of its 3x3 surround
+//		cout << "Turned off SumAroundPixel. general::learn_a_template, At start: features.features.size() = " << features.features.size() << endl;
+		if (clean) SumAroundEachPixel8UC1(Ifeatures, Ifeatures, 3, 1); //This sets the middle pixel (if it's not 0) to the max of its 3x3 surround
 	    //FIND MAX CONTOUR
 	    vector<vector<Point> > contours;
 	    vector<Vec4i> hierarchy;

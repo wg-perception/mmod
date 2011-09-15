@@ -143,9 +143,10 @@ public:
 	 * @param Mask		  Mask 8U_C1 of where the object is
 	 * @param framenum	  frame number of this view
 	 * @param features	  this will hold our learned template
+	 * @param clean		  If true, do a 3x3 max filter to the features. Default is false
 	 * @return index of template learned in features variable.
 	 */
-	int learn_a_template(cv::Mat &Ifeatures,  cv::Mat &Mask, int framenum, mmod_features &features );
+	int learn_a_template(cv::Mat &Ifeatures,  cv::Mat &Mask, int framenum, mmod_features &features, bool clean = false );
 
 
 }; //end mmod_general

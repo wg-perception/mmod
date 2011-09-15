@@ -790,6 +790,7 @@ int test_object_rec() {
 }
 
 int main(int argc, char* argv[]) {
+
 	//	mmod_general mytest;
 	////	return 0;
 	////	fillCosDistTest();
