@@ -685,9 +685,9 @@ int test_object_rec() {
 	Point pp(60,60);
 	cout << "Into draw matches ..." << endl;
 	Objs.draw_matches(temp,pp);
-	namedWindow("I", 0);
-	imshow("I",temp);
-	waitKey(0);
+//	namedWindow("I", 0);
+//	imshow("I",temp);
+//	waitKey(0);
 	////////////////////
 	//SERIALIZATION DB/////////////////
 	////////////////////
@@ -782,9 +782,9 @@ int test_object_rec() {
 	int num_objs = Objs2.match_all_objects(Test, modesGC, Maskb, 0.8, 0.6, 1,1);
 	cout << "num_objs in large window = " << num_objs << endl;
 	Objs2.draw_matches(Draw,Point(0,0));
-	namedWindow("Draw", 0);
-	imshow("Draw",Draw);
-	waitKey(0);
+//	namedWindow("Draw", 0);
+//	imshow("Draw",Draw);
+//	waitKey(0);
 
 	return num_templ;
 }

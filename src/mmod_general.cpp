@@ -460,8 +460,8 @@ mmod_general::mmod_general()
 	 */
 	void mmod_general::fillCosDist()
 	{
-		if(lut[2] != 1)
-		{
+//		if(lut[2] != 1)
+//		{
 			for(int k = 0; k<256; ++k) lut[k] = 8;//illegal value for accum arrays, will cause error but shouldn't be hit
 			lut[0] = 8;
 			lut[1] = 0;
@@ -472,7 +472,7 @@ mmod_general::mmod_general()
 			lut[32] = 5;
 			lut[64] = 6;
 			lut[128] = 7;
-		}
+//		}
 		matchLUT.resize(9);
 		uchar a, al, ar; //left and right shift
 		float dist[9] = {

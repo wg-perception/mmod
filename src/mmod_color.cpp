@@ -6,7 +6,11 @@
  *  Created on: Sep 13, 2011
  *      Author: Gary Bradski
  */
+#include "mmod_color.h"
+#include <iostream>
 
+using namespace cv;
+using namespace std;
 //////////////////////////////////////////////////////////////////////////////////////////////
 /**
  * mmodcolor  Produces color coded images, each pixel converted to one of 8 bits:
@@ -35,9 +39,10 @@
 	void mmodcolor::computeColorOrder(const cv::Mat &Iin, cv::Mat &Icolorord, const cv::Mat Mask) {
 		if (Iin.size() != Icolorord.size() || Icolorord.type() != CV_8UC1) //Make sure Icolorord is the right size
 		{
-			Icolorord.create(Iin.size(), CV_8UC1,Scalar(0,0,0));
+			Icolorord.create(Iin.size(), CV_8UC1);
 		}
-//		Icolorord = Scalar::all(0); //Zero it
+		Icolorord = Scalar::all(0); //Zero it
+		cv::Mat temp;
 		if (!Mask.empty()) //We have a mask
 		{
 			if (Iin.size() != Mask.size()) {
@@ -46,10 +51,10 @@
 			}
 			if (Mask.type() == CV_8UC3) {
 				//don't write into the Mask, as its supposed to be const.
-				cv::Mat temp;
 				cv::cvtColor(Mask, temp, CV_RGB2GRAY);
-				Mask = temp;
+//				Mask = temp;
 			}
+			else temp = Mask;
 			if (Mask.type() != CV_8UC1) {
 				cerr
 						<< "ERROR: Mask is not of type CV_8UC1 in computeColorOrder"
@@ -57,9 +62,9 @@
 			}
 		}
 		uchar white = (uchar)(255 - black_white_thresh);
-		if (Mask.empty()) //No mask
+		if (temp.empty()) //No mask
 		{
-			for (int y = 0; y < Iin.rows; y++) {
+			for (int y = 0; y < Iin.rows; ++y) {
 				const uchar *b = Iin.ptr<uchar> (y);
 				const uchar *g = b + 1;
 				const uchar *r = b + 2;
@@ -137,7 +142,7 @@
 				const uchar *b = Iin.ptr<uchar> (y);
 				const uchar *g = b + 1;
 				const uchar *r = b + 2;
-				const uchar *m = Mask.ptr<uchar> (y);
+				const uchar *m = temp.ptr<uchar> (y);
 				uchar *o = Icolorord.ptr<uchar> (y);
 				for (int x = 0; x < Iin.cols; x++, b += 3, g += 3, r += 3, o++) {
 					if (!(*m)) {
@@ -215,12 +220,22 @@
 	}
 
 //////////////////WTA////////////////////////////
+	/**
+	 * \brief Compute a winner take all inspired color feature.
+	 *
+	 * Basically it does Gaussian blur and then chooses the max index from 8 points in a 7x7 patch around each pixel.
+	 *
+	 * @param Iin 			Input image (color)
+	 * @param Icolorord		Return CV_8UC1 image where each uchar codes for the max index in patch around each pixel
+	 * @param Mask			CV_8UC1 or CV_8UC3 region to collect from. Can be empty (no mask).
+	 */
 	void colorwta::computeColorWTA(const cv::Mat &Iin, cv::Mat &Icolorord, const cv::Mat Mask) {
 		if (Iin.size() != Icolorord.size() || Icolorord.type() != CV_8UC1) //Make sure Icolorord is the right size
 		{
-			Icolorord.create(Iin.size(), CV_8UC1,Scalar(0,0,0));
+			Icolorord.create(Iin.size(), CV_8UC1);
 		}
 		Icolorord = Scalar::all(0); //Zero it
+		cv::Mat temp;
 		if (!Mask.empty()) //We have a mask
 		{
 			if (Iin.size() != Mask.size()) {
@@ -229,34 +244,29 @@
 			}
 			if (Mask.type() == CV_8UC3) {
 				//don't write into the Mask, as its supposed to be const.
-				cv::Mat temp;
 				cv::cvtColor(Mask, temp, CV_RGB2GRAY);
-				Mask = temp;
+//				Mask = temp;
 			}
+			else temp = Mask;
 			if (Mask.type() != CV_8UC1) {
-				cerr
-						<< "ERROR: Mask is not of type CV_8UC1 in computeColorOrder"
-						<< endl;
+				cerr << "ERROR: Mask is not of type CV_8UC1 in computeColorOrder" << endl;
 			}
 		}
 		GaussianBlur(Iin, Idst, Size(5,5), 2);
 		uchar vals[8];
-		if (Mask.empty()) //No mask
+		if (temp.empty()) //No mask
 		{
 			for (int y = 3; y < Idst.rows-4; y++) {
-//				const uchar *b = Iin.ptr<uchar> (y);
-//				const uchar *g = b + 1;
-//				const uchar *r = b + 2;
 				uchar *o = Icolorord.ptr<uchar> (y);
-				for (int x = 3; x < Idst.cols-4; x++, o++){//,b += 3, g += 3, r += 3 ) {
-					vals[0] = Idst.at<uchar>(y-2,x+3)[2];
-					vals[1] = Idst.at<uchar>(y,x-3)[0];
-					vals[2] = Idst.at<uchar>(y+1,x+1)[0];
-					vals[3] = Idst.at<uchar>(y-3,x-3)[1];
-					vals[4] = Idst.at<uchar>(y-2,x)[2];
-					vals[5] = Idst.at<uchar>(y-1,x+1)[0];
-					vals[6] = Idst.at<uchar>(y+2,x+2)[1];
-					vals[7] = Idst.at<uchar>(y-1,x-1)[1];
+				for (int x = 3; x < Idst.cols-4; x++, o++){
+					vals[0] = Idst.at<Vec3b>(y-2,x+3)[2];
+					vals[1] = Idst.at<Vec3b>(y,x-3)[0];
+					vals[2] = Idst.at<Vec3b>(y+1,x+1)[0];
+					vals[3] = Idst.at<Vec3b>(y-3,x-3)[1];
+					vals[4] = Idst.at<Vec3b>(y-2,x)[2];
+					vals[5] = Idst.at<Vec3b>(y-1,x+1)[0];
+					vals[6] = Idst.at<Vec3b>(y+2,x+2)[1];
+					vals[7] = Idst.at<Vec3b>(y-1,x-1)[1];
 					uchar max = 0;
 					int index = 0;
 					for(int i = 0; i<8; ++i)
@@ -267,5 +277,118 @@
 				}
 			}
 		}
+		else //Use mask
+		{
+			for (int y = 3; y < Idst.rows-4; y++) {
 
+				const uchar *m = temp.ptr<uchar> (y);
+				uchar *o = Icolorord.ptr<uchar> (y);
+				for (int x = 3; x < Idst.cols-4; x++, o++){
+					if(!(*m)) continue;
+					vals[0] = Idst.at<Vec3b>(y-2,x+3)[2];
+					vals[1] = Idst.at<Vec3b>(y,x-3)[0];
+					vals[2] = Idst.at<Vec3b>(y+1,x+1)[0];
+					vals[3] = Idst.at<Vec3b>(y-3,x-3)[1];
+					vals[4] = Idst.at<Vec3b>(y-2,x)[2];
+					vals[5] = Idst.at<Vec3b>(y-1,x+1)[0];
+					vals[6] = Idst.at<Vec3b>(y+2,x+2)[1];
+					vals[7] = Idst.at<Vec3b>(y-1,x-1)[1];
+					uchar max = 0;
+					int index = 0;
+					for(int i = 0; i<8; ++i)
+					{
+						if(vals[i] > max){max = vals[i]; index = i;}
+					}
+					*o = 1<<index;
+				}
+			}
+		}
+	}
 
+//////////////wta depth///////////////////////////////
+	typedef Vec<ushort, 3> Vec3us;
+
+	/**
+	 * \brief Compute a winner take all inspired depth feature.
+	 *
+	 * Basically it does Gaussian blur and then chooses the max index from 8 points in a 7x7 patch around each pixel.
+	 *
+	 * @param Iin 			Input CV_16UC1 depth image
+	 * @param Icolorord		Return CV_8UC1 image where each uchar codes for the max index in the patch around that pixel
+	 * @param Mask			CV_8UC1 or CV_8UC3 region to collect from. Can be empty (no mask).
+	 */
+	void depthwta::computeDepthWTA(const cv::Mat &Iin, cv::Mat &Icolorord, const cv::Mat Mask) {
+		if (Iin.size() != Icolorord.size() || Icolorord.type() != CV_8UC1) //Make sure Icolorord is the right size
+		{
+			Icolorord.create(Iin.size(), CV_8UC1);
+		}
+		Icolorord = Scalar::all(0); //Zero it
+		cv::Mat temp;
+		if (!Mask.empty()) //We have a mask
+		{
+			if (Iin.size() != Mask.size()) {
+				cerr << "ERROR: Mask in computeColorOrder size != Iina" << endl;
+				return;
+			}
+			if (Mask.type() == CV_8UC3) {
+				//don't write into the Mask, as its supposed to be const.
+				cv::cvtColor(Mask, temp, CV_RGB2GRAY);
+//				Mask = temp;
+			}
+			else temp = Mask;
+			if (Mask.type() != CV_8UC1) {
+				cerr << "ERROR: Mask is not of type CV_8UC1 in computeColorOrder" << endl;
+			}
+		}
+		GaussianBlur(Iin, Idst, Size(5,5), 2);
+		ushort vals[8];
+		if (temp.empty()) //No mask
+		{
+			for (int y = 3; y < Idst.rows-4; y++) {
+				uchar *o = Icolorord.ptr<uchar> (y);
+				for (int x = 3; x < Idst.cols-4; x++, o++){
+					vals[0] = Idst.at<ushort>(y-2,x+3);
+					vals[1] = Idst.at<ushort>(y,x-3);
+					vals[2] = Idst.at<ushort>(y+1,x+1);
+					vals[3] = Idst.at<ushort>(y-3,x-3);
+					vals[4] = Idst.at<ushort>(y-2,x);
+					vals[5] = Idst.at<ushort>(y-1,x+1);
+					vals[6] = Idst.at<ushort>(y+2,x+2);
+					vals[7] = Idst.at<ushort>(y-1,x-1);
+					ushort max = 0;
+					int index = 0;
+					for(int i = 0; i<8; ++i)
+					{
+						if(vals[i] > max){max = vals[i]; index = i;}
+					}
+					*o = 1<<index;
+				}
+			}
+		}
+		else //Use mask
+		{
+			for (int y = 3; y < Idst.rows-4; y++) {
+
+				const uchar *m = temp.ptr<uchar> (y);
+				uchar *o = Icolorord.ptr<uchar> (y);
+				for (int x = 3; x < Idst.cols-4; x++, o++){
+					if(!(*m)) continue;
+					vals[0] = Idst.at<ushort>(y-2,x+3);
+					vals[1] = Idst.at<ushort>(y,x-3);
+					vals[2] = Idst.at<ushort>(y+1,x+1);
+					vals[3] = Idst.at<ushort>(y-3,x-3);
+					vals[4] = Idst.at<ushort>(y-2,x);
+					vals[5] = Idst.at<ushort>(y-1,x+1);
+					vals[6] = Idst.at<ushort>(y+2,x+2);
+					vals[7] = Idst.at<ushort>(y-1,x-1);
+					ushort max = 0;
+					int index = 0;
+					for(int i = 0; i<8; ++i)
+					{
+						if(vals[i] > max){max = vals[i]; index = i;}
+					}
+					*o = 1<<index;
+				}
+			}
+		}
+	}

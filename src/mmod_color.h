@@ -7,7 +7,7 @@
 
 #ifndef MMOD_COLOR_H_
 #define MMOD_COLOR_H_
-
+#include <opencv2/opencv.hpp>
 //////////////////////////////////////////////////////////////////////////////////////////////
 /**  This is a "line mod type way of classing color
  * mmodcolor  Produces color coded images, each pixel converted to one of 8 bits:
@@ -44,13 +44,46 @@ public:
 	void computeColorOrder(const cv::Mat &Iin, cv::Mat &Icolorord, cv::Mat Mask);
 };
 
+
+////////////COLOR WTA/////////////////////////////////////////////////////////////
 /**
  * This second method is inspired by the "winner take all" method from the paper
  * "The Power of Comparative Reasoning
  */
 class colorwta {
+	cv::Mat Idst;
 public:
-	int K;		//Window length
+	/**
+	 * \brief Compute a winner take all inspired color feature.
+	 *
+	 * Basically it does Gaussian blur and then chooses the max index from 8 points in a 7x7 patch around each pixel.
+	 *
+	 * @param Iin 			Input image (color)
+	 * @param Icolorord		Return CV_8UC1 image where each uchar codes for the max index in patch around each pixel
+	 * @param Mask			CV_8UC1 or CV_8UC3 region to collect from. Can be empty (no mask).
+	 */
+	void computeColorWTA(const cv::Mat &Iin, cv::Mat &Icolorord, const cv::Mat Mask);
+};
+
+
+////////////COLOR WTA/////////////////////////////////////////////////////////////
+/**
+ * This class produces uchar depth features where each feature (at each pixel) comes from a Gaussian blur
+ * followed by the maximum index of 8 randomly chosen points around the corresponding pixel.
+ */
+class depthwta {
+	cv::Mat Idst;
+public:
+	/**
+	 * \brief Compute a winner take all inspired depth feature.
+	 *
+	 * Basically it does Gaussian blur and then chooses the max index from 8 points in a 7x7 patch around each pixel.
+	 *
+	 * @param Iin 			Input CV_16UC1 depth image
+	 * @param Icolorord		Return CV_8UC1 image where each uchar codes for the max index in the patch around that pixel
+	 * @param Mask			CV_8UC1 or CV_8UC3 region to collect from. Can be empty (no mask).
+	 */
+	void computeDepthWTA(const cv::Mat &Iin, cv::Mat &Icolorord, const cv::Mat Mask);
 };
 
 #endif /* MMOD_COLOR_H_ */
