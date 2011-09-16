@@ -21,6 +21,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Computes a surface mesh of an object in the database')
     parser.add_argument('-s', '--session_id', metavar='SESSION_ID', dest='session_id', type=str, default='',
                        help='The session id to reconstruct.')
+    parser.add_argument('-o', '--output', metavar='OUTPUTFILE', dest='output', type=str, default='trained.mmod',
+                       help='The output file of training.')
     parser.add_argument('--all', dest='compute_all', action='store_const',
                         const=True, default=False,
                         help='Compute templates for all possible sessions.')
@@ -36,11 +38,10 @@ def parse_args():
     return args
 
 
-def train_mmod(obj_ids, args):
+def train_mmod(mmod_trainer, persister, obj_ids, args):
     db_reader = capture.ObservationReader('db_reader', db_url=args.db_root, collection='observations')
     observation_dealer = ecto.Dealer(typer=db_reader.inputs.at('observation'), iterable=obj_ids)
     db_reader = capture.ObservationReader('db_reader', db_url=args.db_root, collection='observations')
-    depthTo3d = calib.DepthTo3d()
     erode = imgproc.Erode(kernel=3) #-> 7x7
     rescale_depth = capture.RescaledRegisteredDepth() #this is for SXGA mode scale handling.
     plasm = ecto.Plasm()
@@ -52,14 +53,22 @@ def train_mmod(obj_ids, args):
         db_reader['mask'] >> erode['image'],
     )
 
+    print "Training session_id:", str(session.id), " object_id:", str(session.object_id)
+    #set the session id, and the object id fo this guy.
+    mmod_trainer.params.session_id = str(session.id)
+    mmod_trainer.params.object_id = str(session.object_id)
     #hook up the trainer
-    mmod_trainer = MModTrainer(session_id=session.id, object_id=str(session.object_id))
     plasm.connect(
         erode['image'] >> mmod_trainer['mask'],
         db_reader['image'] >> mmod_trainer['image'],
         rescale_depth['depth'] >> mmod_trainer['depth'],
         db_reader['frame_number'] >> mmod_trainer['frame_number'],
     )
+    
+    #persistance
+    persisert_if = ecto.If(cell=persister) #this is so it never runs.
+    #only connect the If, not the persister.
+    plasm.connect(mmod_trainer['templates'] >> persisert_if['templates'])
 
     if args.visualize:
         plasm.connect(
@@ -79,11 +88,15 @@ if "__main__" == __name__:
 
     sessions = dbs['sessions']
     observations = dbs['observations']
+    
+    mmod_trainer = MModTrainer(session_id='NA', object_id='NA')
+    persister = MModPersister(filename="trained_all.mmod")
+
     if args.compute_all:
         results = models.Session.all(sessions)
         for session in results:
             obs_ids = models.find_all_observations_for_session(observations, session.id)
-            train_mmod(obs_ids, args)
+            train_mmod(mmod_trainer, persister, obs_ids, args)
 
     else:
         session = models.Session.load(sessions, args.session_id)
@@ -91,4 +104,7 @@ if "__main__" == __name__:
             print "Could not load session with id:", args.session_id
             sys.exit(1)
         obs_ids = models.find_all_observations_for_session(observations, session.id)
-        train_mmod(obs_ids, args)
+        train_mmod(mmod_trainer, persister, obs_ids, args)
+    
+    #the inputs should still be valid, so just thunk process once to save to disk
+    persister.process()

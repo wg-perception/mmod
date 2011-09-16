@@ -12,6 +12,7 @@ ecto_python_env_gen(${CMAKE_BINARY_DIR}/lib)
 ectomodule(mmod
  module.cpp
  MModTrainer.cpp
+ MModTester.cpp
  MModPersister.cpp
 )
 

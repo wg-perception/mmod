@@ -52,6 +52,7 @@ using namespace std;
 		vector<string>::iterator ii;		//Object ID iterator (object names)
 		vector<vector<int> >::iterator fitr;//Feature indices iterator
 		int len = (int)rv.size();
+		if(rv.empty()) len = 1;
 		int Dcolor = 150/len;
 		Scalar color(255,255,255);
 		string stringscore;

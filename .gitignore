@@ -1,3 +1,4 @@
+*.mmod
 build
 .cproject
 .project

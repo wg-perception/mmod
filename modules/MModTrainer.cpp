@@ -82,8 +82,7 @@ namespace mmod
       FeatModes.push_back(depthfeat);
 
       //LEARN A TEMPLATE (for now, it will slow down with each view learned).
-      std::string sT1("ST1"), oT("T"), oX("X");
-      /*int num_templ = */
+      //the object_id and session_id are dynamically changed by python or otherwise.
       trainer_->learn_a_template(FeatModes, modesCD, *mask_, *session_id_, *object_id_, *frame_number_, *thresh_learn_);
       return ecto::OK;
     }
