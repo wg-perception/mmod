@@ -8,6 +8,35 @@
 #ifndef MMOD_COLOR_H_
 #define MMOD_COLOR_H_
 #include <opencv2/opencv.hpp>
+
+#define CALCFEAT_SHOW() {std::cout << __FILE__ << " : "  << __LINE__ << std::endl;}
+  //VERBOSE
+  // 1 Routine list, 2 values out, 3 internal values outside of loops, 4 intenral values in loops
+  #define CALCFEAT_VERBOSE 0
+
+  #if CALCFEAT_VERBOSE >= 1
+  #define CALCFEAT_DEBUG_1(X) do{CALCFEAT_SHOW() X }while(false)
+  #else
+  #define CALCFEAT_DEBUG_1(X) do{}while(false)
+  #endif
+
+  #if CALCFEAT_VERBOSE >= 2
+  #define CALCFEAT_DEBUG_2(X) do{CALCFEAT_SHOW() X}while(false)
+  #else
+  #define CALCFEAT_DEBUG_2(X) do{}while(false)
+  #endif
+  #if CALCFEAT_VERBOSE >= 3
+  #define CALCFEAT_DEBUG_3(X) do{CALCFEAT_SHOW() X}while(false)
+  #else
+  #define CALCFEAT_DEBUG_3(X) do{}while(false)
+  #endif
+  #if CALCFEAT_VERBOSE >= 4
+  #define CALCFEAT_DEBUG_4(X) do{CALCFEAT_SHOW() X}while(false)
+  #else
+  #define CALCFEAT_DEBUG_4(X) do{}while(false)
+  #endif
+
+
 //////////////////////////////////////////////////////////////////////////////////////////////
 /**  This is a "line mod type way of classing color
  * mmodcolor  Produces color coded images, each pixel converted to one of 8 bits:

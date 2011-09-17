@@ -1,5 +1,5 @@
 find_package(ecto)
-
+#set(CMAKE_BUILD_TYPE Release)
 if(NOT ecto_FOUND)
   message(STATUS "Ecto was not found, so disabling ecto cells")
   return()

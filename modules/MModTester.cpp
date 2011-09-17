@@ -5,6 +5,7 @@
 
 #include "mmod_objects.h"  //For train and test
 #include "mmod_color.h"    //For depth and color processing (yes, I should change the name)
+using namespace std;
 namespace mmod
 {
   using ecto::tendrils;
@@ -16,7 +17,7 @@ namespace mmod
     {
       p.declare<std::string> ("filename", "Output file name to save training to.");
 
-      p.declare<float> ("thresh_learn", "The threshold for learning a new template", 0.8);
+ //     p.declare<float> ("thresh_learn", "The threshold for learning a new template", 0.8);
       p.declare<float> ("thresh_match", "The threshold for learning a new template", 0.85);
       p.declare<float> (
                         "frac_overlap",
@@ -45,7 +46,8 @@ namespace mmod
       frac_overlap_ = p["frac_overlap"];
       skip_x_ = p["skip_x"];
       skip_y_ = p["skip_y"];
-
+      modesCD.push_back("Color");
+      modesCD.push_back("Depth");
       //deserialize from file.
       std::ifstream file(filename.c_str());
       boost::archive::text_iarchive ia(file);
@@ -65,22 +67,8 @@ namespace mmod
     {
       //iputs spores are like smart pointers, dereference to get at under
       //lying data type.
-      cv::Mat image = *image_, mask = *mask_;
+      cv::Mat image = *image_, mask = *mask_, depth = *depth_;
 
-      cv::Mat depth;
-      if (depth_->type() == CV_32FC1)
-      {
-        depth_->convertTo(depth, CV_16U, 1 / 1000.0);
-      }
-      else if (depth_->type() == CV_16UC1)
-      {
-        depth = *depth_;
-      }
-      else
-      {
-        throw std::logic_error(
-                               "You must supply us with either a CV_32FC1 or CV_16UC1 depth map. Floating point in meters, fixed in mm.");
-      }
       //run detections.
       //TEST (note that you can also match_all_objects_at_a_point(...):
       calcColor.computeColorWTA(image, colorfeat, mask);
@@ -88,9 +76,9 @@ namespace mmod
       FeatModes.clear();
       FeatModes.push_back(colorfeat);
       FeatModes.push_back(depthfeat);
-
-      templates_.match_all_objects(FeatModes, modesCD, mask, *thresh_match_, *frac_overlap_, *skip_x_, *skip_y_);
-
+      cout << "mask empty? " << mask.empty()<<endl;
+      int num_matches = templates_.match_all_objects(FeatModes, modesCD, mask, *thresh_match_, *frac_overlap_, *skip_x_, *skip_y_);
+      cout << "num_matches = " << num_matches << endl;
       //TO DISPLAY MATCHES (NON-MAX SUPPRESSED)
       cv::Mat debug_image;
       image.copyTo(debug_image);

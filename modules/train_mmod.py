@@ -37,7 +37,6 @@ def parse_args():
         sys.exit(1)
     return args
 
-
 def train_mmod(mmod_trainer, persister, obj_ids, args):
     db_reader = capture.ObservationReader('db_reader', db_url=args.db_root, collection='observations')
     observation_dealer = ecto.Dealer(typer=db_reader.inputs.at('observation'), iterable=obj_ids)
@@ -78,6 +77,7 @@ def train_mmod(mmod_trainer, persister, obj_ids, args):
           )
     sched = ecto.schedulers.Singlethreaded(plasm)
     sched.execute()
+
 
 if "__main__" == __name__:
     args = parse_args()

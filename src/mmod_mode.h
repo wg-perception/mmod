@@ -16,6 +16,32 @@
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/archive/text_iarchive.hpp>
 #include <boost/serialization/map.hpp>
+//VERBOSE
+// 1 Routine list, 2 values out, 3 internal values outside of loops, 4 intenral values in loops
+#define MODE_VERBOSE 0
+
+#if MODE_VERBOSE >= 1
+#define MODE_DEBUG_1(X) do{X}while(false)
+#else
+#define MODE_DEBUG_1(X) do{}while(false)
+#endif
+
+#if MODE_VERBOSE >= 2
+#define MODE_DEBUG_2(X) do{X}while(false)
+#else
+#define MODE_DEBUG_2(X) do{}while(false)
+#endif
+#if MODE_VERBOSE >= 3
+#define MODE_DEBUG_3(X) do{X}while(false)
+#else
+#define MODE_DEBUG_3(X) do{}while(false)
+#endif
+#if MODE_VERBOSE >= 4
+#define MODE_DEBUG_4(X) do{X}while(false)
+#else
+#define MODE_DEBUG_4(X) do{}while(false)
+#endif
+
 //namespace boost {
 //namespace serialization {
 //

@@ -36,22 +36,23 @@ mmod_general::mmod_general()
 	 */
 	void mmod_general::display_feature(Mat &I, vector<uchar> &f, vector<Point> &o, Rect &bbox)
 	{
+	  GENL_DEBUG_1(cout<<"mmod_general::display_feature. Size features:"<<f.size()<<" size offsets:"<<o.size()<<endl;);
 		Rect R = bbox;
 		R.x += I.cols/2; R.y += I.rows/2; //Just put the roi against the upper left edge
-//		cout << "R(" << R.x << ", "<< R.y << ", "<< R.width << ", "<< R.height << ")" << endl;
-//		cout << "I(" << I.cols << ", " << I.rows <<")" << endl;
+		GENL_DEBUG_3(cout << "R(" << R.x << ", "<< R.y << ", "<< R.width << ", "<< R.height << ")" << endl;
+		cout << "I(" << I.cols << ", " << I.rows <<")" << endl;);
 		Mat Iroi = I(R); //Work within our region of interest
-//		cout << "Iroi(" << Iroi.cols << ", " << Iroi.rows << ")" << endl;
+		GENL_DEBUG_3(cout << "Iroi(" << Iroi.cols << ", " << Iroi.rows << ")" << endl;);
 		Iroi = Scalar::all(0); //Clear out that region
 		vector<uchar>::iterator _fit;			//feature vals iterator
 		vector<Point>::iterator _oit; 			//offset values iterator
 		int xc = Iroi.cols/2, yc = Iroi.rows/2;
-//		cout << "(xc,yc) = " << xc << ", " << yc << ")" << endl;
+		GENL_DEBUG_3(cout << "(xc,yc) = " << xc << ", " << yc << ")" << endl;);
 		//PUT OUR CURRENT FEATURE INTO THE IMAGE.
 		int i = 0;
 		for(_fit = f.begin(), _oit = o.begin(); _fit != f.end(); ++_fit, ++_oit, ++i)
 		{
-//			cout << "i=" << i << ", x = " << xc + (*_oit).x << ", y = " << yc + (*_oit).y << endl;
+		  GENL_DEBUG_4(cout << "i=" << i << ", x = " << xc + (*_oit).x << ", y = " << yc + (*_oit).y << endl;);
 			Iroi.at<uchar>(yc + (*_oit).y, xc + (*_oit).x) = *_fit;
 		}
 	}
@@ -100,10 +101,11 @@ mmod_general::mmod_general()
 	 */
 	float mmod_general::match_a_patch_bruteforce(const Mat &I, const Point &p, mmod_features &f, int &match_index)
 	{
+	  GENL_DEBUG_1(cout<<"mmod_general::match_a_patch_bruteforde"<<endl;);
 		match_index = -1;
 		if(f.features.empty())//Handle edge conditions
 		{
-//			cout << "g:match a patch features empty" << endl;
+		  GENL_DEBUG_2(cout << "g:match a patch features empty" << endl;);
 			return(0.0);
 		}
 
@@ -128,22 +130,22 @@ mmod_general::mmod_general()
 			int ye = ys + (*rit).height;
 			match = 0;
 			norm = 0;
-//			cout << "Len of features: " << (*fit).size() << endl;
-//			cout << k << ": xs, xe; ys, ye: " << xs << ", " << xe << "; " << ys << ", " << ye << endl;
+			GENL_DEBUG_4(cout << "Len of features: " << (*fit).size() << endl;
+			cout << k << ": xs, xe; ys, ye: " << xs << ", " << xe << "; " << ys << ", " << ye << endl;);
 			if((xs >= 0)&&(ys >= 0)&&(xe < cols)&&(ye < rows)) //Bounding rectangle within the image => no bounds checking needed
 			{
-//				cout << "NO BOUNDS CHECK NEEDED" << endl;
+			  GENL_DEBUG_4(cout << "NO BOUNDS CHECK NEEDED" << endl;);
 				for(_fit = (*fit).begin(), _oit = (*oit).begin(); _fit != (*fit).end(); ++_fit, ++_oit)
 				{
-//					cout << "*_fit:" << (int)(*_fit) << " at( " << p.y + (*_oit).y << ", " << p.x + (*_oit).x << "), I= " << (int)(I.at<uchar>(p.y + (*_oit).y, p.x + (*_oit).x)) << endl;
+				  GENL_DEBUG_4(cout << "*_fit:" << (int)(*_fit) << " at( " << p.y + (*_oit).y << ", " << p.x + (*_oit).x << "), I= " << (int)(I.at<uchar>(p.y + (*_oit).y, p.x + (*_oit).x)) << endl;);
 					match += matchLUT[lut[*_fit]][I.at<uchar>(p.y + (*_oit).y, p.x + (*_oit).x)]; //matchLUT[lut[model_uchar]][test_uchar]
-//					cout << "matchLUT = " << matchLUT[lut[*_fit]][I.at<uchar>(p.y + (*_oit).y, p.x + (*_oit).x)] << endl;
+					GENL_DEBUG_4(cout << "matchLUT = " << matchLUT[lut[*_fit]][I.at<uchar>(p.y + (*_oit).y, p.x + (*_oit).x)] << endl;);
 					++norm;
 				}
 			}
 			else //bounds checking needed
 			{
-//				cout << "BOUNDS CHECKING NEEDED" << endl;
+			  GENL_DEBUG_4(cout << "BOUNDS CHECKING NEEDED" << endl;);
 				for(_fit = (*fit).begin(), _oit = (*oit).begin(); _fit != (*fit).end(); ++_fit, ++_oit)
 				{
 					int xx = p.x + (*_oit).x;  //bounds check the indices
@@ -155,7 +157,7 @@ mmod_general::mmod_general()
 					++norm;
 				}
 			}
-//			cout << "norm in g:match_a_patch = " << norm << endl;
+			GENL_DEBUG_4(cout << "norm in g:match_a_patch = " << norm << endl;);
 			if(0 == norm) norm = 1;
 			match /= (float)norm;
 			if(match > maxmatch)
@@ -164,6 +166,7 @@ mmod_general::mmod_general()
 				match_index = k;
 			}
 		}
+		GENL_DEBUG_2(cout << "Max match = "<<maxmatch<<" norm="<<norm<<endl;);
 		return maxmatch;
 	}
 
@@ -462,6 +465,7 @@ mmod_general::mmod_general()
 	{
 //		if(lut[2] != 1)
 //		{
+	  GENL_DEBUG_1(cout <<"In mmod_general::fillCosDist()"<<endl;);
 			for(int k = 0; k<256; ++k) lut[k] = 8;//illegal value for accum arrays, will cause error but shouldn't be hit
 			lut[0] = 8;
 			lut[1] = 0;
@@ -600,7 +604,7 @@ mmod_general::mmod_general()
 	 */
 	int mmod_general::learn_a_template(Mat &Ifeatures,  Mat &Mask, int framenum, mmod_features &features, bool clean)
 	{
-//		cout << "Turned off SumAroundPixel. general::learn_a_template, At start: features.features.size() = " << features.features.size() << endl;
+	  GENL_DEBUG_1(cout << "In mmod_general::learn_a_template. framenum:"<<framenum<<" At start: features.features.size() = " << features.features.size() << endl;);
 		if (clean) SumAroundEachPixel8UC1(Ifeatures, Ifeatures, 3, 1); //This sets the middle pixel (if it's not 0) to the max of its 3x3 surround
 	    //FIND MAX CONTOUR
 	    vector<vector<Point> > contours;
@@ -615,7 +619,7 @@ mmod_general::mmod_general()
 	    }
 	    //FIND CENTER
 	    Rect R = boundingRect(contours[maxpos]);
-//	    cout << "Found contour bbox = (" << R.x << ", " << R.y << ", " << R.width << ", " << R.height << ")" <<endl;
+	    GENL_DEBUG_3(cout << "Found contour bbox = (" << R.x << ", " << R.y << ", " << R.width << ", " << R.height << ")" <<endl;);
 	    int xc = R.width/2, yc = R.height/2;
 	    features.frame_number.push_back(framenum);
 
@@ -679,7 +683,7 @@ mmod_general::mmod_general()
 		features.quadLL.push_back(LL);
 		features.quadLR.push_back(LR);
 		features.bbox.push_back(R);
-//		cout << "At end: features.features[" << features.features.size() - 1 << "] =" << features.features[features.features.size() - 1].size() << endl;
+		GENL_DEBUG_2(cout << "At end: features.features[" << features.features.size() - 1 << "] =" << features.features[features.features.size() - 1].size() << endl;);
 		return (int)features.features.size() - 1;
 	}
 

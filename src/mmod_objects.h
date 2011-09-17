@@ -18,6 +18,32 @@
 #include <boost/archive/text_iarchive.hpp>
 #include <boost/serialization/map.hpp>
 
+//VERBOSE
+// 1 Routine list, 2 values out, 3 internal values outside of loops, 4 intenral values in loops
+#define OBJS_VERBOSE 0
+
+#if OBJS_VERBOSE >= 1
+#define OBJS_DEBUG_1(X) do{X}while(false)
+#else
+#define OBJS_DEBUG_1(X) do{}while(false)
+#endif
+
+#if OBJS_VERBOSE >= 2
+#define OBJS_DEBUG_2(X) do{X}while(false)
+#else
+#define OBJS_DEBUG_2(X) do{}while(false)
+#endif
+#if OBJS_VERBOSE >= 3
+#define OBJS_DEBUG_3(X) do{X}while(false)
+#else
+#define OBJS_DEBUG_3(X) do{}while(false)
+#endif
+#if OBJS_VERBOSE >= 4
+#define OBJS_DEBUG_4(X) do{X}while(false)
+#else
+#define OBJS_DEBUG_4(X) do{}while(false)
+#endif
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 /**

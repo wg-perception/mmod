@@ -12,6 +12,33 @@
 #include <map>
 #include <vector>
 #include "mmod_features.h"
+
+//VERBOSE
+// 1 Routine list, 2 values out, 3 internal values outside of loops, 4 intenral values in loops
+#define GENL_VERBOSE 0
+
+#if GENL_VERBOSE >= 1
+#define GENL_DEBUG_1(X) do{X}while(false)
+#else
+#define GENL_DEBUG_1(X) do{}while(false)
+#endif
+
+#if GENL_VERBOSE >= 2
+#define GENL_DEBUG_2(X) do{X}while(false)
+#else
+#define GENL_DEBUG_2(X) do{}while(false)
+#endif
+#if GENL_VERBOSE >= 3
+#define GENL_DEBUG_3(X) do{X}while(false)
+#else
+#define GENL_DEBUG_3(X) do{}while(false)
+#endif
+#if GENL_VERBOSE >= 4
+#define GENL_DEBUG_4(X) do{X}while(false)
+#else
+#define GENL_DEBUG_4(X) do{}while(false)
+#endif
+
 //////////////////////////////////////////////////////////////////////////////////////////////
 class mmod_general
 {

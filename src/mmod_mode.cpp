@@ -67,44 +67,66 @@ mmod_mode::mmod_mode(const string &mode_name)
 	 * @return					Returns index of newly learned template, or -1 if a template already covered
 	 */
 	int mmod_mode::learn_a_template(Mat &Ifeat, Mat &Mask, string &session_ID, string &object_ID,
-			int framenum, float learn_thresh)
+	                                int framenum, float learn_thresh)
 	{
-//		cout << "In mmod_mode::learn_a_template" << endl;
-		mmod_features ftemp(session_ID, object_ID);  //We'll learn a provisional feature here
-		int index = util.learn_a_template(Ifeat, Mask, framenum, ftemp);
-//		cout << "index = " << index << ", learned util.learn_a_template" << endl;
-//		cout << "ftemp max_bounds:" << ftemp.max_bounds.x << ", " << ftemp.max_bounds.y << ", "<< ftemp.max_bounds.width << ", "<< ftemp.max_bounds.height << endl;
-//		cout << "ftemp.bbox(" << ftemp.bbox[index].x << ", " << ftemp.bbox[index].y << ", " << ftemp.bbox[index].width << ", " <<  ftemp.bbox[index].height << ")" << endl;
-		//SEE IF PATCH NEEDS TO BE ADJUSTED
-		if((patch.empty())||(ftemp.bbox[index].width >= patch.cols)||(ftemp.bbox[index].height >= patch.rows))
-		{
-			patch = Mat::zeros(ftemp.bbox[index].height+20,ftemp.bbox[index].width+20,CV_8UC1);
-		}
-		int rows = patch.rows; int cols = patch.cols;
-//		cout << "Patch(rows,cols)" << rows << ", " << cols << endl;
-		//MAP THE FEATURE TO AN IMAGE PATCH
-		int xc = cols/2, yc = rows/2;
-		util.display_feature(patch, ftemp.features[index], ftemp.offsets[index], ftemp.bbox[index]);
-		int match_index, object_index;
-		if(objs.count(object_ID)>0) //If this object exits already
-		{
-			Point pp = Point(xc,yc);
-//			cout << "Obj exists already, point = (" << pp.x << ", " << pp.y << ")" << endl;
-			float score = util.match_a_patch_bruteforce(patch, pp, objs[object_ID], match_index);
-//			cout << object_ID << " at match_index = " << match_index << ", score from bfm = " << score << endl;
-			if(score <= learn_thresh)
-			{
-//				cout << "Return insert " << endl;
-				return(objs[object_ID].insert(ftemp,index)); //Insert this template because no existing template scored it high enough
-			}
-		}
-		else // We have never learned this object yet
-		{
-//			cout << "inserting new obj" << endl;
-			objs.insert(pair<string, mmod_features>(object_ID,ftemp));
-			return 0;//Template is in zero'th position in objs[object_ID].features
-		}
-		return -1;
+	  MODE_DEBUG_1(
+	      cout << "In mmod_mode::learn_a_template, sessionID:" << session_ID << " objID:"<<object_ID<<" frame#:"<<framenum<<" learn_thresh:"<<learn_thresh<< endl;
+	  );
+	  mmod_features ftemp(session_ID, object_ID);  //We'll learn a provisional feature here
+	  int index = util.learn_a_template(Ifeat, Mask, framenum, ftemp);
+	  MODE_DEBUG_2(
+	      cout << "index = " << index << ", learned util.learn_a_template" << endl;
+	  cout << "ftemp max_bounds:" << ftemp.max_bounds.x << ", " << ftemp.max_bounds.y << ", "<< ftemp.max_bounds.width << ", "<< ftemp.max_bounds.height << endl;
+	  cout << "ftemp.bbox(" << ftemp.bbox[index].x << ", " << ftemp.bbox[index].y << ", " << ftemp.bbox[index].width << ", " <<  ftemp.bbox[index].height << ")" << endl;
+	  );
+	  //SEE IF PATCH NEEDS TO BE ADJUSTED
+	  if((patch.empty())||(ftemp.bbox[index].width >= patch.cols)||(ftemp.bbox[index].height >= patch.rows))
+	  {
+	    MODE_DEBUG_2(
+	        cout << "Reallocating patch from (r,c)("<<patch.rows<<","<<patch.cols<<") to ("<<ftemp.bbox[index].height+20<<
+	        ","<< ftemp.bbox[index].width+20<<")"<<endl;
+	    );
+	    patch = Mat::zeros(ftemp.bbox[index].height+20,ftemp.bbox[index].width+20,CV_8UC1);
+	  }
+	  int rows = patch.rows; int cols = patch.cols;
+	  MODE_DEBUG_2(
+	      cout << "Patch(rows,cols)" << rows << ", " << cols << endl;
+	  );
+	  //MAP THE FEATURE TO AN IMAGE PATCH
+	  int xc = cols/2, yc = rows/2;
+	  util.display_feature(patch, ftemp.features[index], ftemp.offsets[index], ftemp.bbox[index]);
+	  int match_index, object_index;
+	  if(objs.count(object_ID)>0) //If this object exits already
+	  {
+	    Point pp = Point(xc,yc);
+	    MODE_DEBUG_2(
+	        cout << "Obj exists already, point = (" << pp.x << ", " << pp.y << ")" << endl;
+	    );
+	    float score = util.match_a_patch_bruteforce(patch, pp, objs[object_ID], match_index);
+	    MODE_DEBUG_2(
+	        cout << object_ID << " at match_index = " << match_index << ", score from bfm = " << score << " learn_thresh = " << learn_thresh << endl;
+	    );
+	    if(score <= learn_thresh)
+	    {
+	      MODE_DEBUG_2(
+	          cout << "Return insert: score(" << score <<") <= learn_thresh(" << learn_thresh << ")" <<  endl;
+	      );
+	      return(objs[object_ID].insert(ftemp,index)); //Insert this template because no existing template scored it high enough
+	    }
+	    MODE_DEBUG_1(
+	        cout << "score(" << score <<") > learn_thresh(" << learn_thresh << ")" << endl;
+	    );
+	  }
+	  else // We have never learned this object yet
+	  {
+	    MODE_DEBUG_1(
+	        cout << "inserting new obj" << endl;
+	    );
+	    objs.insert(pair<string, mmod_features>(object_ID,ftemp));
+	    return 0;//Template is in zero'th position in objs[object_ID].features
+	  }
+	  MODE_DEBUG_1(cout << "return -1"<<endl;);
+	  return -1;
 	}
 
 
@@ -120,21 +142,32 @@ mmod_mode::mmod_mode(const string &mode_name)
 	 * @return				Score of this match
 	 */
 	float mmod_mode::match_an_object(string &object_ID, const Mat &I, const Point &pp, int &match_index,
-			Rect &R, int &frame_numb)
+	                                 Rect &R, int &frame_numb)
 	{
-		float score = 0.0;
-		if(objs.count(object_ID)>0) //If this object exits already
-		{
-			score = util.match_a_patch_bruteforce(I,pp,objs[object_ID],match_index);
-			R = objs[object_ID].bbox[match_index]; //This is the bounding box of the mask. It needs to be offset by pp:
-//			cout << "Hey! score = " << score << " match_index = " << match_index << endl;
-//			if(match_index >= 0) cout << "score = " << score << "at pp = ("<<pp.x<<","<<pp.y<<") mode::match_an_object: R(" << R.x <<","<<R.y<<","<<R.width<<","<<R.height<<")"<< endl;
-//			R.x += pp.x; R.y += pp.y; //R.x and R.y were set to the center of the object
-//			if(match_index >= 0) cout << "After: mode::match_an_object: R(" << R.x <<","<<R.y<<","<<R.width<<","<<R.height<<")"<< endl;
-			frame_numb = objs[object_ID].frame_number[match_index];
-			return(score);
-		}
-		//If we can't fill in R and frame_numb, don't touch them
-		match_index = -1;
-		return score;
+	  MODE_DEBUG_1(
+	      cout << "In mmod_mode::match_an_object(ID:"<<object_ID<<", point("<<pp.x<<","<<pp.y<<")"<< endl;
+	  );
+	  float score = 0.0;
+	  if(objs.count(object_ID)>0) //If this object exits already
+	  {
+	    score = util.match_a_patch_bruteforce(I,pp,objs[object_ID],match_index);
+	    R = objs[object_ID].bbox[match_index]; //This is the bounding box of the mask. It needs to be offset by pp:
+	    MODE_DEBUG_2(
+	        cout << "score = " << score << " match_index = " << match_index << endl;
+	    if(match_index >= 0) cout << "score = " << score << "at pp = ("<<pp.x<<","<<pp.y<<") mode::match_an_object: R(" << R.x <<","<<R.y<<","<<R.width<<","<<R.height<<")"<< endl;
+	    R.x += pp.x; R.y += pp.y; //R.x and R.y were set to the center of the object
+	    if(match_index >= 0) cout << "After: mode::match_an_object: R(" << R.x <<","<<R.y<<","<<R.width<<","<<R.height<<")"<< endl;
+	    );
+	    frame_numb = objs[object_ID].frame_number[match_index];
+	    MODE_DEBUG_1(
+	        cout << "score = " << score << endl;
+	    );
+	    return(score);
+	  }
+	  //If we can't fill in R and frame_numb, don't touch them
+	  match_index = -1;
+	  MODE_DEBUG_1(
+	      cout << "score = " << score << endl;
+	  );
+	  return score;
 	}

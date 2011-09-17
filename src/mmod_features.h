@@ -20,6 +20,34 @@
 namespace boost {
 namespace serialization {
 
+  //VERBOSE
+  // 1 Routine list, 2 values out, 3 internal values outside of loops, 4 intenral values in loops
+  #define FEAT_VERBOSE 0
+
+  #if FEAT_VERBOSE >= 1
+  #define FEAT_DEBUG_1(X) do{X}while(false)
+  #else
+  #define FEAT_DEBUG_1(X) do{}while(false)
+  #endif
+
+  #if FEAT_VERBOSE >= 2
+  #define FEAT_DEBUG_2(X) do{X}while(false)
+  #else
+  #define FEAT_DEBUG_2(X) do{}while(false)
+  #endif
+  #if FEAT_VERBOSE >= 3
+  #define FEAT_DEBUG_3(X) do{X}while(false)
+  #else
+  #define FEAT_DEBUG_3(X) do{}while(false)
+  #endif
+  #if FEAT_VERBOSE >= 4
+  #define FEAT_DEBUG_4(X) do{X}while(false)
+  #else
+  #define FEAT_DEBUG_4(X) do{}while(false)
+  #endif
+
+
+
 template<class Archive>
 void serialize(Archive & ar, cv::Point &p, const unsigned int version)
 {
