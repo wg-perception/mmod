@@ -63,7 +63,8 @@ void serialize(Archive & ar, cv::Rect &r, const unsigned int version)
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 /**
- *\brief This class stores line mode views+features-of-those-views and related structures for a specific object
+ *\brief This class stores line mode features for each view and related structures
+ *\brief for a specific object for a specified mode
  *
  * This class is mainly called via mmod_objects:: class which contains vector<mmod_features>.
  */
@@ -75,9 +76,9 @@ public:
 	std::string session_ID;              				//For database lookup
 	std::string object_ID;								//What's the name of this object
 	std::vector<int> frame_number;						//Frame number can be associated with view/pose etc
-	std::vector<std::vector<uchar> > features;  				//uchar features, only one bit is on
-	std::vector<std::vector<cv::Point> > offsets;   				//the x,y coordinates of each feature
-	std::vector<cv::Rect>  bbox;								//bounding box of the features
+	std::vector<std::vector<uchar> > features;  		//uchar features, only one bit is on
+	std::vector<std::vector<cv::Point> > offsets;   	//the x,y coordinates of each feature
+	std::vector<cv::Rect>  bbox;						//bounding box of the features
 	std::vector<std::vector<int> > quadUL,quadUR,quadLL,quadLR;//List of features in each quadrant
 	cv::Rect max_bounds;								//This rectangle contains the maximum width and and height spanned by all the bbox rectangles
 	mmod_features();
@@ -91,6 +92,11 @@ public:
 	 */
 	void setup(std::string &sID, std::string &oID);
 
+	/**
+	 * \brief Return the number of views stored
+	 * @return int number of stored views.
+	 */
+	int size(){ return((int)(features.size()));};
 
 	//SERIALIZATION
     template<class Archive>

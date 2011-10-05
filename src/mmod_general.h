@@ -73,6 +73,17 @@ public:
 	void display_feature(cv::Mat &I, std::vector<uchar> &f, std::vector<cv::Point> &o, cv::Rect &bbox);
 
 	/**
+	 * \brief This takes in binarized 8U_C1 image and colorizes it for visualization.
+	 *
+	 * Colors are Bright red 128, dull red 64, bright yellow 32, dull yellow 16, bright purple 8,
+	 * dull purple 4, blue 2, dull blue 1, black 0
+	 *
+	 * @param I		input binarized image [128,64,32,16,8,4,2,1,0] CV_8UC1
+	 * @param iB	output colorized image CV_8UC3
+	 */
+	void visualize_binary_image(const cv::Mat &I, cv::Mat &iB);
+
+	/**
 	 * \brief Draw a feature (vector<uchar> with offsets (vector<Point>) into an image at a point. Does bounds checking
 	 *
 	 * This function is used for debug (testing matching)
@@ -100,8 +111,18 @@ public:
 	float match_a_patch_bruteforce(const cv::Mat &I, const cv::Point &p, mmod_features &f, int &match_index);
 
 
-
-
+	/**
+	 * \brief Brute force match a linemod filter template at (centered on) a particular point in an image
+	 *
+	 * This is the matching function for mmod_filters to return a score of a given object/modality and given view at a point
+	 *
+	 * @param I				Input image or patch
+	 * @param R				Rectangle at which to match
+	 * @param f				trained mmod_features reference to match against
+	 * @param index   		index of which view to use in mmod_features
+	 * @return				score of match. If f is empty, return 0 (nothing matches)
+	 */
+	float match_one_feature(const cv::Mat &I, const cv::Rect &R, mmod_features &f, int index);
 
 	/**
 	 * Given an 8UC1 image where each pixel is a byte with at most 1 bit on, Either:

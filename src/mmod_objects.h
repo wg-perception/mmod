@@ -47,14 +47,19 @@
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 /**
- *\brief This class stores multi-mod object models
+ *\brief This class stores multi-mod object models in a sorted list (via std::map). For filters,
+ *\brief use mmod_filters in this file
+ *
+ * This holds multiple objects (sorted lists of learned objects via std::maps s). Each object has its
+ * modes (depth, gradient, ...)  and each mode has it's
+ * features for each view
  */
 class mmod_objects
 {
 public:
 	typedef std::map <std::string, mmod_mode> ModelsForModes; //(mode, models_for_that_mode)
 	ModelsForModes 		modes;			//For each mode, learned objects
-	mmod_general 		util;			//Learning, Matching etc (contains patch w
+	mmod_general 		util;			//Learning, Matching etc
 	//Below is just temp storage for match_all_objects* convenience
 	std::vector<cv::Rect> rv;			//vector of rectangle bounding boxes from an image match_all_objects
 	std::vector<float> scores;			//the scores from the above
@@ -81,8 +86,10 @@ public:
 
 	/**
 	 *\brief  cout all matches after a call to match_all_objects. This function is for debug
+	 *
+	 *@return Total number of matches
 	 */
-	void cout_matches();
+	int cout_matches();
 
 	/**
 	 * \brief Empty all vectors.
@@ -121,11 +128,12 @@ public:
 	 * @param frac_overlap		the fraction of overlap between 2 above threshold feature's bounding box rectangles that constitutes "overlap"
 	 * @param skipX				In the search, jump over this many pixels X
 	 * @param skipY				In the search, jump over this many pixels Y
-	 * @return					Number of surviving non-max suppressed object matches.
+	 * @param rawmatches		If set, fill this with the total number of matches before non-max suppression.
+  	 * @return					Number of surviving non-max suppressed object matches.
 	 *                          Results are stored in rv (rect), scores (match value), objs (object_IDs) frame_nums (frame#s).
 	 */
 	int match_all_objects(const std::vector<cv::Mat> &I, const std::vector<std::string>& mode_names, const cv::Mat &Mask,
-			float match_threshold, float frac_overlap, int skipX = 7, int skipY = 7);
+			float match_threshold, float frac_overlap, int skipX = 7, int skipY = 7, int *rawmatches = 0);
 
 
 
@@ -134,15 +142,88 @@ public:
 	 *
 	 * Learn a template if no other template is close to the current features in the mask.
 	 *
-	 * @param Ifeats			Vector: For each mode, Feature image of uchar bytes where only one or zero bits are on.
+	 * @param Ifeats			Vector: For each modality, Feature image of uchar bytes where only one or zero bits are on.
 	 * @param mode_names		Vector: List of names of the modes of the above features
 	 * @param Mask				uchar mask silhouetting the object to be learned
 	 * @param framenum			Frame number of this object, so that we can reconstruct pose from the database
 	 * @param learn_thresh		If no features from f match above this, learn a new template.
+	 *                          NOTE: templates are not blurred, so your threshold will *have* to be a good deal lower than
+	 *                                you have it set for learn mode.  Maybe something like 0.3 lower.
+	 * @param Score				If set, fill with patch match score
 	 * @return					Returns total number of templates for this object
 	 */
 	int learn_a_template(std::vector<cv::Mat> &Ifeat, const std::vector<std::string> &mode_names, cv::Mat &Mask,
-			std::string &session_ID, std::string &object_ID, int framenum, float learn_thresh);
+			std::string &session_ID, std::string &object_ID, int framenum, float learn_thresh, float *Score = 0);
+
+};
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+/**
+ * \brief This class holds verification filters as a sorted list of objects (via std::map) of
+ * \brief a list of features for a sorted list of views (via an index using std::multimap)
+ *
+ * Filters are typically used for post-verification of an object hypothesis (typically found by calling
+ * recognition from mmod_objects from which you must get the:
+ * object name,
+ * the cv::Rect where it was found and
+ * the framenum of the recognized view).
+ * Filters have a single modality (color, depth, gradient) and an index (via std::multimap) that allows
+ * you to look up a particualr view (here, framenum).  They give you the recognition score for that object,
+ * that modality and that view (framenum) at a given point.  You use that score [0, 1] as a verification that
+ * the hypothesized object is correct.
+ */
+class mmod_filters
+{
+public:
+	typedef std::map <std::string, mmod_features> ObjFilters; //(object, features_per_view)
+	ObjFilters 			ObjViews;		//For each object, list of it's learned views
+	std::string         mode;			//The mode (gradient, depth,...) used by this filter
+	mmod_general 		util;			//utility for Learning, Matching etc
+
+	//For the index which is, for each object (name) we have a multimap (allowing duplicate entries)
+	//where you can specify a framenum and get out the learned features (sets) for that view. The multimap
+	//is just to allow more than one learned modal per view, though this probably shouldn't happen.
+
+	typedef std::map<std::string, std::multimap<int,int> > IndexOfViews; //(object, multimap index of <framenum,view index>)
+	IndexOfViews		ViewIndex;		// (obj, framenum => index of that view in mmod_feature)
+
+	mmod_filters(std::string modality) { mode = modality;};
+
+	/**
+	 * \brief For a given object, if the view index is not updated, update it so that
+	 * \brief framenum will return it's learned index
+	 * @param objname	Name of object
+	 * @return number of total views for the object. -1 => error, no such object
+	 */
+	int update_viewindex(std::string objname);
+
+	/**
+	 * \brief For all objects, if the view index is not updated, update it so that framenum will return it's learned index
+	 * @return Total number of views in ObjViews
+	 */
+	int update_viewindex();
+
+	/**
+	 * \brief Match one modality in image I against learned object name and view (framenum) at R
+	 * Called mainly from mmod_filters in mmod_objects.h
+ 	 * @param I			Single modality input image, CV_8UC1
+	 * @param objname	Name of object to verify
+	 * @param R			Hypothesis of object location
+	 * @param framenum  View (or frame number)
+	 * @return			Matching score
+	 */
+	float match_here(const cv::Mat &I, std::string objname, cv::Rect &R, int framenum);
+
+	/**
+	 * \brief Learn a filter template: a std::map of objects and their features for their set of views. One modality only
+	 * @param Ifeatures		8UC1 binarized feature image for this mode (color or gradient, or ...). One bit set per pixel
+	 * @param Mask			8UC3 or 8UC1 silhoette of the object
+	 * @param objname		Name of this object class
+	 * @param framenum		Framenum (correlated to view)
+	 * @param clean			If true, do a 3x3 max filter to the features. Default is false
+	 * @return				Number of views learned for this object. -1 => error
+	 */
+	int learn_a_template( cv::Mat &Ifeatures,  cv::Mat &Mask, std::string objname, int framenum, bool clean = false);
 
 };
 

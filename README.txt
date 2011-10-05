@@ -57,10 +57,10 @@ FeatModes.clear();
 FeatModes.push_back(colorfeat);
 FeatModes.push_back(depthfeat);
 
-int SkipX = 2, SkipY = 2;  //These control sparse testing of the feature images
+int skipX = 2, skipY = 2;  //These control sparse testing of the feature images
 
 int num_matches = Objs.match_all_objects(FeatModes,modesCD,AttendMask,
                         match_threshold,frac_overlap,skipX,skipY);                                     
 
 //TO DISPLAY MATCHES (NON-MAX SUPPRESSED)
-Objs.drawMatches(ColorRaw);	                                     
+Objs.draw_matches(ColorRaw);	                                     

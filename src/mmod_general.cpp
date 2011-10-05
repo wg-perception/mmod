@@ -58,6 +58,50 @@ mmod_general::mmod_general()
 	}
 
 	/**
+	 * \brief This takes in binarized 8U_C1 image and colorizes it for visualization.
+	 *
+	 * Colors are Bright red 128, dull red 64, bright yellow 32, dull yellow 16, bright purple 8,
+	 * dull purple 4, blue 2, dull blue 1, black 0
+	 *
+	 * @param I		input binarized image [128,64,32,16,8,4,2,1,0] CV_8UC1
+	 * @param iB	output colorized image CV_8UC3
+	 */
+	void mmod_general::visualize_binary_image(const cv::Mat &I, cv::Mat &iB)
+	{
+		if(iB.empty()||iB.rows != I.rows || iB.cols != I.cols)
+		{
+			iB.create(I.size(),CV_8UC3);
+		}
+		iB = Scalar::all(0);
+		uchar c;
+//		int cnt[256];
+//		for(int i = 0; i<256; ++i)
+//			cnt[i] = 0;
+		for(int y = 1; y < I.rows; y++) {
+			uchar *bptr = iB.ptr<uchar>(y);
+			const uchar *cptr = I.ptr<uchar>(y);
+			for(int x = 0; x < I.cols; x++, bptr += 3, ++cptr)
+			{
+				c = *cptr;
+				uchar blues = (uchar)((float)(c&7)*18.0 + 128.0);
+				if((c<<5) == 0) blues = 0;
+//				uchar blues = c << 5;
+				uchar greens = (uchar)(float((c>>3)&7)*18.0 + 128.0);
+				if((c & 0x38) == 0) greens = 0;
+//				uchar greens = (c & 0x38)<<2;
+//				uchar reds = c & 0xC0;
+				uchar reds = (uchar)((float)((c>>5)&3)*18.0 + 128.0);
+				if((c & 0xC0) == 0) reds = 0;
+				*bptr = blues;
+				*(bptr + 1) = greens;
+				*(bptr + 2) = reds;
+
+			}
+		}
+	}
+
+
+	/**
 	 * \brief Draw a feature (vector<uchar> with offsets (vector<Point>) into an image at a point. Does bounds checking
 	 *
 	 * This function is used for debug (testing matching)
@@ -119,44 +163,60 @@ mmod_general::mmod_general()
 		float match, maxmatch = 0;
 		int norm;
 		int rows = I.rows, cols = I.cols;
-//		cout << "In mmod_general::match_a_patch_bruteforce, I(r,c)=(" << rows <<","<<cols<<"), f.features.size() = " << f.features.size() << endl;
+		Rect imgRect(0,0,cols,rows);
 
 		//FOR FEATURES
 		for(rit = f.bbox.begin(), fit = f.features.begin(), oit = f.offsets.begin(), k=0; rit != f.bbox.end(); ++fit, ++oit, ++rit, ++k)
 		{
-			int xs = p.x + (*rit).x;
-			int xe = xs + (*rit).width;
-			int ys = p.y + (*rit).y;
-			int ye = ys + (*rit).height;
+			Rect Rpatch(p.x + (*rit).x,p.y + (*rit).y,(*rit).width,(*rit).height);
 			match = 0;
 			norm = 0;
-			GENL_DEBUG_4(cout << "Len of features: " << (*fit).size() << endl;
-			cout << k << ": xs, xe; ys, ye: " << xs << ", " << xe << "; " << ys << ", " << ye << endl;);
-			if((xs >= 0)&&(ys >= 0)&&(xe < cols)&&(ye < rows)) //Bounding rectangle within the image => no bounds checking needed
+			GENL_DEBUG_4(
+				cout << "Len of features: " << (*fit).size() << endl;
+			);
+			Rect Ri = imgRect & Rpatch; //Intersection between patch and image
+			int Risize = Ri.width * Ri.height;
+			int Rpsize = Rpatch.width * Rpatch.height;
+			if(Risize == Rpsize) //Intersection between patch and image is the same size at patch
 			{
-			  GENL_DEBUG_4(cout << "NO BOUNDS CHECK NEEDED" << endl;);
+//				cout << "Good:" << Ri.width << "vs" << Rpatch.width << ", "<< Ri.height<< "vs" << Rpatch.height << endl;
+				GENL_DEBUG_4(cout << "NO BOUNDS CHECK NEEDED" << endl;);
 				for(_fit = (*fit).begin(), _oit = (*oit).begin(); _fit != (*fit).end(); ++_fit, ++_oit)
 				{
-				  GENL_DEBUG_4(cout << "*_fit:" << (int)(*_fit) << " at( " << p.y + (*_oit).y << ", " << p.x + (*_oit).x << "), I= " << (int)(I.at<uchar>(p.y + (*_oit).y, p.x + (*_oit).x)) << endl;);
+				    GENL_DEBUG_4(
+				    		cout << "*_fit:" << (int)(*_fit) << " at( " << p.y + (*_oit).y << ", " << p.x + (*_oit).x << "), I= " << (int)(I.at<uchar>(p.y + (*_oit).y, p.x + (*_oit).x)) << endl;
+				    );
 					match += matchLUT[lut[*_fit]][I.at<uchar>(p.y + (*_oit).y, p.x + (*_oit).x)]; //matchLUT[lut[model_uchar]][test_uchar]
-					GENL_DEBUG_4(cout << "matchLUT = " << matchLUT[lut[*_fit]][I.at<uchar>(p.y + (*_oit).y, p.x + (*_oit).x)] << endl;);
+					GENL_DEBUG_4(
+							cout << "matchLUT = " << matchLUT[lut[*_fit]][I.at<uchar>(p.y + (*_oit).y, p.x + (*_oit).x)] << endl;
+					);
 					++norm;
 				}
 			}
 			else //bounds checking needed
 			{
-			  GENL_DEBUG_4(cout << "BOUNDS CHECKING NEEDED" << endl;);
-				for(_fit = (*fit).begin(), _oit = (*oit).begin(); _fit != (*fit).end(); ++_fit, ++_oit)
+				if(Risize < (int)(Rpsize*0.7)) //Don't try to match too small of areas at the edge
 				{
-					int xx = p.x + (*_oit).x;  //bounds check the indices
-					if((xx < 0)||(xx >= cols)) continue;
-					int yy = p.y + (*_oit).y;
-					if((yy < 0)||(yy >= rows)) continue;
+					norm = 1; match = 0.01;
+				}
+				else
+				{
+					//				cout << "Bad:" << Ri.width << "vs" << Rpatch.width << ", "<< Ri.height<< "vs" << Rpatch.height << endl;
 
-					match += matchLUT[lut[*_fit]][I.at<uchar>(yy,xx)]; //matchLUT[lut[model_uchar]][test_uchar]
-					++norm;
+					GENL_DEBUG_4(cout << "BOUNDS CHECKING NEEDED" << endl;);
+					for(_fit = (*fit).begin(), _oit = (*oit).begin(); _fit != (*fit).end(); ++_fit, ++_oit)
+					{
+						int xx = p.x + (*_oit).x;  //bounds check the indices
+						if((xx < 0)||(xx >= cols)) continue;
+						int yy = p.y + (*_oit).y;
+						if((yy < 0)||(yy >= rows)) continue;
+
+						match += matchLUT[lut[*_fit]][I.at<uchar>(yy,xx)]; //matchLUT[lut[model_uchar]][test_uchar]
+						++norm;
+					}
 				}
 			}
+
 			GENL_DEBUG_4(cout << "norm in g:match_a_patch = " << norm << endl;);
 			if(0 == norm) norm = 1;
 			match /= (float)norm;
@@ -169,6 +229,91 @@ mmod_general::mmod_general()
 		GENL_DEBUG_2(cout << "Max match = "<<maxmatch<<" norm="<<norm<<endl;);
 		return maxmatch;
 	}
+
+
+
+
+	/**
+	 * \brief Brute force match a linemod filter template at (centered on) a particular point in an image
+	 *
+	 * This is the matching function for mmod_filters to return a score of a given object/modality and given view at a point
+	 *
+	 * @param I				Input image or patch
+	 * @param R				Rectangle at which to match
+	 * @param f				trained mmod_features reference to match against
+	 * @param index   		index of which view to use in mmod_features
+	 * @return				score of match. If f is empty, return 0 (nothing matches)
+	 */
+	float mmod_general::match_one_feature(const Mat &I, const Rect &R, mmod_features &f, int index)
+	{
+		GENL_DEBUG_1(cout<<"mmod_general::match_one_feature"<<endl;);
+
+		if(f.features.empty())//Handle edge conditions
+		{
+			GENL_DEBUG_2(cout << "f.features is empty" << endl;);
+			return(0.0);
+		}
+		Point p(R.x + R.width/2, R.y + R.height/2);
+//		f.features[index];
+//		f.offsets[index];
+
+		int k;
+		float match = 0;
+		int norm = 0;
+		int rows = I.rows, cols = I.cols;
+		Rect imgRect(0,0,cols,rows);
+		vector<uchar>::iterator _fit;			//feature vals iterator (within the the current *rit bounding box)
+		vector<Point>::iterator _oit; 			//offset values iterator (offsets to each feature within the bbox set)
+
+		Rect Ri = imgRect & R; //Intersection between patch and image
+		int Risize = Ri.width * Ri.height;
+		int Rpsize = R.width * R.height;
+		if(Risize == Rpsize) //Intersection between patch and image is the same size at patch
+		{
+			GENL_DEBUG_4(cout << "NO BOUNDS CHECK NEEDED" << endl;);
+			for(_fit = f.features[index].begin(), _oit = f.offsets[index].begin(); _fit != f.features[index].end(); ++_fit, ++_oit)
+			{
+				match += matchLUT[lut[*_fit]][I.at<uchar>(p.y + (*_oit).y, p.x + (*_oit).x)]; //matchLUT[lut[model_uchar]][test_uchar]
+				++norm;
+			}
+		}
+		else //bounds checking needed
+		{
+			if(Risize < (int)(Rpsize*0.7)) //Don't try to match too small of areas at the edge
+			{
+				norm = 1; match = 0.01;
+			}
+			else
+			{
+				//				cout << "Bad:" << Ri.width << "vs" << Rpatch.width << ", "<< Ri.height<< "vs" << Rpatch.height << endl;
+
+				GENL_DEBUG_4(cout << "BOUNDS CHECKING NEEDED" << endl;);
+				for(_fit = f.features[index].begin(), _oit = f.offsets[index].begin(); _fit != f.features[index].end(); ++_fit, ++_oit)
+				{
+					int xx = p.x + (*_oit).x;  //bounds check the indices
+					if((xx < 0)||(xx >= cols)) continue;
+					int yy = p.y + (*_oit).y;
+					if((yy < 0)||(yy >= rows)) continue;
+
+					match += matchLUT[lut[*_fit]][I.at<uchar>(yy,xx)]; //matchLUT[lut[model_uchar]][test_uchar]
+					++norm;
+				}
+			}//End else not too little rectangle left in scene
+		}//End bounds checking needed
+
+		if(0 == norm) norm = 1;
+		match /= (float)norm;
+
+		GENL_DEBUG_2(cout << "Score = "<<match<<" norm="<<norm<<endl;);
+		return match;
+	}
+
+
+
+
+
+
+
 
 
 
@@ -634,7 +779,8 @@ mmod_general::mmod_general()
 	    vector<Point> ov;
 	    vector<int> UL,UR,LL,LR;
 	    int index = 0;
-	    int foo = 0;
+	    GENL_DEBUG_3(cout << "Total possible pushbacks = " << R.width*R.height << endl;);
+	    int mcnt = 0,fcnt = 0;
 		for (int y = 0; y < Imroi.rows; y++)
 		{
 			//Output
@@ -642,9 +788,13 @@ mmod_general::mmod_general()
 			uchar *m = Imroi.ptr<uchar> (y);
 			for (int x = 0; x < Imroi.cols; ++x, ++f, ++m)
 			{
+				GENL_DEBUG_3(
+					if(*m) ++mcnt;
+					if(*f) ++fcnt;
+				);
+
 				if(*m && *f)
 				{
-					++foo;
 					int ox = x-xc, oy = y-yc; //Feature offsets are relative to the center
 					ov.push_back(Point(ox,oy));
 					//Find quadrent of this point
@@ -676,6 +826,9 @@ mmod_general::mmod_general()
 				//cout << endl;
 			}//end for x
 		}//end for y
+		GENL_DEBUG_3(
+				cout << "Pushed back " << fv.size() << " feature values with maskcnt = " << mcnt << "and fcnt = " << fcnt << endl;
+		);
 		features.features.push_back(fv);
 		features.offsets.push_back(ov);
 		features.quadUL.push_back(UL);
@@ -683,7 +836,9 @@ mmod_general::mmod_general()
 		features.quadLL.push_back(LL);
 		features.quadLR.push_back(LR);
 		features.bbox.push_back(R);
-		GENL_DEBUG_2(cout << "At end: features.features[" << features.features.size() - 1 << "] =" << features.features[features.features.size() - 1].size() << endl;);
+		GENL_DEBUG_2(
+			cout << "At end: features.features[" << features.features.size() - 1 << "] =" << features.features[features.features.size() - 1].size() << endl;
+		);
 		return (int)features.features.size() - 1;
 	}
 

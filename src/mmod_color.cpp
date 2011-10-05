@@ -40,6 +40,7 @@ using namespace std;
 void
 mmodcolor::computeColorOrder(const cv::Mat &Iin, cv::Mat &Icolorord, const cv::Mat Mask)
 {
+	cout << "compute color order" << endl;
   if (Iin.size() != Icolorord.size() || Icolorord.type() != CV_8UC1) //Make sure Icolorord is the right size
   {
     Icolorord.create(Iin.size(), CV_8UC1);
@@ -67,6 +68,10 @@ mmodcolor::computeColorOrder(const cv::Mat &Iin, cv::Mat &Icolorord, const cv::M
     }
   }
   uchar white = (uchar) (255 - black_white_thresh);
+  int cnt[256];
+  for(int i = 0; i<256; ++i)
+	  cnt[i] = 0;
+  int foo = 0;
   if (temp.empty()) //No mask
   {
     for (int y = 0; y < Iin.rows; ++y)
@@ -90,10 +95,12 @@ mmodcolor::computeColorOrder(const cv::Mat &Iin, cv::Mat &Icolorord, const cv::M
         if ((*b < black_white_thresh) && (*g < black_white_thresh) && (*r < black_white_thresh))
         {
           *o = 64; //Black
+          cnt[64] += 1;
           continue;
         }
         if ((*b > white) && (*g > white) && (*r > white))
         {
+        	cnt[128] += 1;
           *o = 128; //White
           continue;
         }
@@ -106,10 +113,12 @@ mmodcolor::computeColorOrder(const cv::Mat &Iin, cv::Mat &Icolorord, const cv::M
           if (gr > -equal_thresh) //G >= R
           {
             *o = 1; //B>=G>=R
+            cnt[1] += 1;
             continue;
           }
           if (*r > *b) //R > B (>= G)
           {
+        	  cnt[16] += 1;
             *o = 16;
             continue;
           }
@@ -118,11 +127,13 @@ mmodcolor::computeColorOrder(const cv::Mat &Iin, cv::Mat &Icolorord, const cv::M
         {
           if (gr < equal_thresh) //(B>=) R>=G (-gr > -equal_thresh
           {
+        	  cnt[2] += 1;
             *o = 2;
             continue;
           }
           if (*g > *b) //G > B (>=R)
           {
+        	  cnt[4] += 1;
             *o = 4;
             continue;
           }
@@ -131,17 +142,23 @@ mmodcolor::computeColorOrder(const cv::Mat &Iin, cv::Mat &Icolorord, const cv::M
         {
           if (*r > *b) //(G>=) R > B
           {
+        	  cnt[8] += 1;
             *o = 8;
             continue;
           }
         }
         if ((*r > *g) && (*g > *b))
         {
+        	cnt[32] += 1;
           *o = 32;
           continue;
         }
-        cerr << "ERROR: No color value should be zero" << endl;
-        return;
+ //       if(!foo%1000)
+        	cout << (int)*r << ", " << (int)*g << ", " << (int)*b << endl;
+        	foo++;
+        cnt[10] += 1;
+ //       cerr << "ERROR: No color value should be zero" << endl;
+  //      return;
       }
     }
   }//end if no mask
@@ -174,10 +191,12 @@ mmodcolor::computeColorOrder(const cv::Mat &Iin, cv::Mat &Icolorord, const cv::M
         if ((*b < black_white_thresh) && (*g < black_white_thresh) && (*r < black_white_thresh))
         {
           *o = 64; //Black
+          cout << "black" << endl;
           continue;
         }
         if ((*b > white) && (*g > white) && (*r > white))
         {
+        	cout << "White" << endl;
           *o = 128; //White
           continue;
         }
@@ -189,11 +208,13 @@ mmodcolor::computeColorOrder(const cv::Mat &Iin, cv::Mat &Icolorord, const cv::M
         {
           if (gr > -equal_thresh) //G >= R
           {
+        	  cnt[1] +=1;
             *o = 1; //B>=G>=R
             continue;
           }
           if (*r > *b) //R > B (>= G)
           {
+        	  cnt[16] += 1;
             *o = 16;
             continue;
           }
@@ -202,11 +223,13 @@ mmodcolor::computeColorOrder(const cv::Mat &Iin, cv::Mat &Icolorord, const cv::M
         {
           if (gr < equal_thresh) //(B>=) R>=G (-gr > -equal_thresh
           {
+        	  cnt[2] += 1;
             *o = 2;
             continue;
           }
           if (*g > *b) //G > B (>=R)
           {
+        	  cnt[4] += 1;
             *o = 4;
             continue;
           }
@@ -215,22 +238,148 @@ mmodcolor::computeColorOrder(const cv::Mat &Iin, cv::Mat &Icolorord, const cv::M
         {
           if (*r > *b) //(G>=) R > B
           {
+        	  cnt[8] += 1;
             *o = 8;
             continue;
           }
         }
         if ((*r > *g) && (*g > *b))
         {
+        	cnt[32] += 1;
           *o = 32;
           continue;
         }
-        cerr << "ERROR: No color value should be zero outside of the mask" << endl;
-        return;
+        cnt[12] += 1;
+  //      cerr << "ERROR: No color value should be zero outside of the mask" << endl;
+ //       return;
       }
     }
   }//#end mask
+  for(int i = 0; i<256; ++i)
+	  cout << i << ": " << cnt[i] << ", ";
+  cout << endl;
 }
 
+/**
+ * \brief Compute a color linemod feature based on Hue values near gradients
+ * @param Iin  Input BGR image CV_8UC3
+ * @param Icolorord Result image CV_8UC1
+ * @param Mask  compute on masked region (can be left empty) CV_8UC3 or CV_8UC1 ok
+ */
+void colorhls::computeColorHLS(const cv::Mat &Iin, cv::Mat &Icolorord, const cv::Mat Mask)
+{
+	//CHECK INPUTS
+	CALCFEAT_DEBUG_1(cout << "In colorhls::computeColorHLS" << end;);
+	if(Itmp.empty() || Iin.rows != Itmp.rows || Iin.cols != Itmp.cols)
+	{
+		Itmp.create(Iin.size(),CV_8UC3);
+	}
+	if(Icolorord.empty() || Iin.rows != Icolorord.rows || Iin.cols != Icolorord.cols)
+	{
+		Icolorord.create(Iin.size(),CV_8UC1);
+	}
+	else
+		Icolorord = Scalar::all(0); //else make sure it's zero
+	cv::Mat temp;
+	if (!Mask.empty()) //We have a mask
+	{
+		if (Iin.size() != Mask.size())
+		{
+			cerr << "ERROR: Mask in computeColorOrder size != Iina" << endl;
+			return;
+		}
+		if (Mask.type() == CV_8UC3)
+		{
+			//don't write into the Mask, as its supposed to be const.
+			cv::cvtColor(Mask, temp, CV_RGB2GRAY);
+		}
+		else
+			temp = Mask;
+	}
+	//GET HUE
+	cvtColor(Iin, Itmp, CV_BGR2HLS);
+	vector<Mat> HLS;
+	split(Itmp, HLS);
+	double minVal = 0,maxVal = 0;
+	CALCFEAT_DEBUG_3(
+		cout << "HLS size: " << HLS.size() << endl;
+		minMaxLoc(HLS[0], &minVal, &maxVal);
+		cout << "HLS0 min = " << minVal << ", HLS max = " << maxVal << endl;
+		minMaxLoc(HLS[1], &minVal, &maxVal);
+		cout << "HLS1 min = " << minVal << ", HLS max = " << maxVal << endl;
+		minMaxLoc(HLS[2], &minVal, &maxVal);
+		cout << "HLS2 min = " << minVal << ", HLS max = " << maxVal << endl;
+	);
+
+	//ONLY REGISTER HUE AROUND STRONG GRADIENTS
+	Scharr( HLS[1], grad_x, CV_16S, 1, 0, 1, 0, BORDER_DEFAULT ); //dx
+	convertScaleAbs( grad_x, abs_grad_x );
+
+	Scharr( HLS[1], grad_y, CV_16S, 0, 1, 1, 0, BORDER_DEFAULT ); //dy
+	convertScaleAbs( grad_y, abs_grad_y );
+	addWeighted( abs_grad_x, 0.5, abs_grad_y, 0.5, 0, grad );	//|dx| + |dy|
+	//Set what "strong" gradient means
+	Scalar mean,std;
+	meanStdDev(grad, mean, std);
+	uchar thresh = (uchar)(mean[0] + std[0]/1.25);
+	CALCFEAT_DEBUG_3(
+		cout << ", mean = " << mean[0] << ", std = " << std[0] << endl;
+		cout << "thresh = " << (int)thresh << endl;
+		minMaxLoc(grad, &minVal, &maxVal);
+		cout << "grad min = " << minVal << ", grad max = " << maxVal << endl;
+		);
+	//PRODUCE THE COLOR LINE MOD FEATURE IMAGE
+	Mat_<uchar>::iterator h = HLS[0].begin<uchar>(),he = HLS[0].end<uchar>();
+	Mat_<uchar>::iterator c = Icolorord.begin<uchar>();
+	Mat_<uchar>::iterator g = grad.begin<uchar>();
+	if(Mask.empty()) //if no mask
+	{
+		for(; h != he;++h,++c,++g)
+		{
+			if((*g) > thresh)	//We only compute colors where gradients are
+			{
+				int rshift = (int)((float)(*h)/22.5); //Break Hue [0,179] into 8 parts
+				*c = (uchar)(1<<rshift);              //Convert this to a single bit
+				CALCFEAT_DEBUG_3(*h = (uchar)(rshift*18 + 128););
+			}
+			else
+			{
+				*c = 0;
+				CALCFEAT_DEBUG_3(*h = 0;);
+			}
+		}
+	} else { //If mask
+		Mat_<uchar>::const_iterator m = temp.begin<uchar>();
+		for(; h != he;++h,++c,++g,++m)
+		{
+			if(!(*m)) continue;  //Only compute pixels with corresponding
+			if((*g) > thresh)	 //We only compute colors where gradients are
+			{
+				int rshift = (int)((float)(*h)/22.5);//Break Hue [0,179] into 8 parts
+				*c = (uchar)(1<<rshift);             //Convert this to a single bit
+				CALCFEAT_DEBUG_3(*h = (uchar)(rshift*18 + 128););
+			}
+			else
+			{
+				*c = 0;
+				CALCFEAT_DEBUG_3(*h = 0;);
+			}
+		}
+	}
+	CALCFEAT_DEBUG_3(
+		namedWindow("H",0);
+		namedWindow("L",0);
+		namedWindow("S",0);
+		imshow("H",HLS[0]);
+		imshow("L",HLS[1]);
+		imshow("S",HLS[2]);
+		waitKey();
+		destroyWindow("H");
+		destroyWindow("L");
+		destroyWindow("S");
+	);
+	CALCFEAT_DEBUG_2(cout << "Exit colorhls::computeColorHLS" << end;);
+}
 //////////////////WTA////////////////////////////
 /**
  * \brief Compute a winner take all inspired color feature.
@@ -244,132 +393,236 @@ mmodcolor::computeColorOrder(const cv::Mat &Iin, cv::Mat &Icolorord, const cv::M
 void
 colorwta::computeColorWTA(const cv::Mat &Iin, cv::Mat &Icolorord, const cv::Mat Mask)
 {
-  CALCFEAT_DEBUG_1(cout << "In colorwta::computeColorWTA, Iin.rows,cols = "<<Iin.rows<<", "<<Iin.cols<<endl;);
-  if(Iin.type() != CV_8UC3)
-  {
-    cerr << "ERROR: in colorwta::computeColorWTA, Iin does not have type CV_8UC3, it has type: " << Iin.type()<<endl;
-    return;
-  }
-  if (Iin.size() != Icolorord.size() || Icolorord.type() != CV_8UC1) //Make sure Icolorord is the right size
-  {
-    Icolorord.create(Iin.size(), CV_8UC1);
-  }
-  Icolorord = Scalar::all(0); //Zero it
-  cv::Mat temp;
-  if (!Mask.empty()) //We have a mask
-  {
-    if (Iin.size() != Mask.size())
-    {
-      cerr << "ERROR: Mask in computeColorOrder size != Iina" << endl;
-      return;
-    }
-    if (Mask.type() == CV_8UC3)
-    {
-      //don't write into the Mask, as its supposed to be const.
-      cv::cvtColor(Mask, temp, CV_RGB2GRAY);
-      //				Mask = temp;
-    }
-    else
-      temp = Mask;
-    if (Mask.type() != CV_8UC1)
-    {
-      cerr << "ERROR: Mask is not of type CV_8UC1 in computeColorOrder" << endl;
-    }
-  }
-  GaussianBlur(Iin, Idst, Size(5, 5), 2);
-  CALCFEAT_DEBUG_3(cout << "After GaussianBlur, Idst.rows,cols = " << Idst.rows<<", "<<Idst.cols<<endl;);
-  uchar vals[8];
-  if (temp.empty()) //No mask
-  {
-    CALCFEAT_DEBUG_3(cout << "No mask"<<endl;);
-    for (int y = 3; y < Idst.rows - 4; y++)
-    {
-      uchar *o = (Icolorord.ptr<uchar> (y)) + 3;
-      for (int x = 3; x < Idst.cols - 4; x++, o++)
-      {
-        vals[0] = Idst.at<Vec3b> (y - 2, x + 3)[2];
-        vals[1] = Idst.at<Vec3b> (y, x - 3)[0];
-        vals[2] = Idst.at<Vec3b> (y + 1, x + 1)[0];
-        vals[3] = Idst.at<Vec3b> (y - 3, x - 3)[1];
-        vals[4] = Idst.at<Vec3b> (y - 2, x)[2];
-        vals[5] = Idst.at<Vec3b> (y - 1, x + 1)[0];
-        vals[6] = Idst.at<Vec3b> (y + 2, x + 2)[1];
-        vals[7] = Idst.at<Vec3b> (y - 1, x - 1)[1];
-        uchar max = 0;
-        int index = 0;
-        for (int i = 0; i < 8; ++i)
-        {
-          if (vals[i] > max)
-          {
-            max = vals[i];
-            index = i;
-          }
-        }
-        CALCFEAT_DEBUG_4(
-            if(!(y%40)&&(!(x%40)))
-            {
-              cout << "vals: ";
-              for(int i = 0; i<8; ++i)
-              {
-                cout << i <<":"<<(int)vals[i]<<" ";
-              }
-              cout << "\n max is "<<(int)max<<" at index "<<index<<endl;
-              cout << "which has byte rep "<< (int)(1<<index)<< endl;
-            }
-        );
-        *o = (uchar)1 << index;
-      }
-    }
-  }
-  else //Use mask
-  {
-    CALCFEAT_DEBUG_3(cout << "With mask"<<endl;);
-    for (int y = 3; y < Idst.rows - 4; y++)
-    {
+	CALCFEAT_DEBUG_1(cout << "In colorwta::computeColorWTA, Iin.rows,cols = "<<Iin.rows<<", "<<Iin.cols<<endl;);
+	if(Iin.type() != CV_8UC3)
+	{
+		cerr << "ERROR: in colorwta::computeColorWTA, Iin does not have type CV_8UC3, it has type: " << Iin.type()<<endl;
+		return;
+	}
+	if (Iin.size() != Icolorord.size() || Icolorord.type() != CV_8UC1) //Make sure Icolorord is the right size
+	{
+		Icolorord.create(Iin.size(), CV_8UC1);
+	}
+	Icolorord = Scalar::all(0); //Zero it
+	cv::Mat temp;
+	if (!Mask.empty()) //We have a mask
+	{
+		if (Iin.size() != Mask.size())
+		{
+			cerr << "ERROR: Mask in computeColorOrder size != Iina" << endl;
+			return;
+		}
+		if (Mask.type() == CV_8UC3)
+		{
+			//don't write into the Mask, as its supposed to be const.
+			cv::cvtColor(Mask, temp, CV_RGB2GRAY);
+			//				Mask = temp;
+		}
+		else
+			temp = Mask;
+		if (Mask.type() != CV_8UC1)
+		{
+			cerr << "ERROR: Mask is not of type CV_8UC1 in computeColorOrder" << endl;
+		}
+	}
+	int cnt[256];
+	CALCFEAT_DEBUG_3(
+			for(int i = 0; i<256; ++i)
+				cnt[i] = 0;
+	);
+	Idst = Iin;
+	GaussianBlur(Iin, Idst2, Size(5, 5), 2);
+//	GaussianBlur(Idst,Idst, Size(5,5), 2);
+//	GaussianBlur(Idst, Idst2, Size(5, 5), 2);
+//	GaussianBlur(Idst2,Idst2, Size(5,5),2);
+//	GaussianBlur(Idst, Idst, Size(5, 5), 2);
+	CALCFEAT_DEBUG_3(cout << "After GaussianBlur, Idst.rows,cols = " << Idst.rows<<", "<<Idst.cols<<endl;);
+	uchar vals[8];
+	int b1,b2,g1,g2,r1,r2,dg,black,white,yellow,rl,gr,ru,gd;
+	if (temp.empty()) //No mask
+	{
 
-      const uchar *m = temp.ptr<uchar> (y) + 3;
-      uchar *o = Icolorord.ptr<uchar> (y) + 3;
-      for (int x = 3; x < Idst.cols - 4; x++, o++,++m)
-      {
-        if (!(*m))
-          continue;
-        vals[0] = Idst.at<Vec3b> (y - 2, x + 3)[2];
-        vals[1] = Idst.at<Vec3b> (y, x - 3)[0];
-        vals[2] = Idst.at<Vec3b> (y + 1, x + 1)[0];
-        vals[3] = Idst.at<Vec3b> (y - 3, x - 3)[1];
-        vals[4] = Idst.at<Vec3b> (y - 2, x)[2];
-        vals[5] = Idst.at<Vec3b> (y - 1, x + 1)[0];
-        vals[6] = Idst.at<Vec3b> (y + 2, x + 2)[1];
-        vals[7] = Idst.at<Vec3b> (y - 1, x - 1)[1];
-        uchar max = 0;
-        int index = 0;
-        for (int i = 0; i < 8; ++i)
-        {
-          if (vals[i] > max)
-          {
-            max = vals[i];
-            index = i;
-          }
-        }
-        CALCFEAT_DEBUG_4(
-            if(!(y%40)&&(!(x%40)))
-            {
-              cout << "vals: ";
-              for(int i = 0; i<8; ++i)
-              {
-                cout << i <<":"<<(int)vals[i]<<" ";
-              }
-              cout << "\n max is "<<(int)max<<" at index "<<index<<endl;
-              cout << "which has byte rep "<< (int)((uchar)1<<index)<< endl;
-            }
-        );
-        *o = (uchar)1 << index;
-      }
-    }
-  }
-  CALCFEAT_DEBUG_2(cout << "Exit..."<<endl;
-  imshow("ColorMap",Icolorord);
-  );
+		CALCFEAT_DEBUG_3(cout << "No mask"<<endl;);
+//		for (int y = 3; y < Idst.rows - 4; y++)
+		for (int y = 1; y < Idst.rows - 1; y++)
+		{
+			uchar *o = (Icolorord.ptr<uchar> (y)) + 1;// + 3;
+			Vec3b *ga1 = Idst.ptr<Vec3b> (y) + 1;
+			Vec3b *ga2 = Idst2.ptr<Vec3b> (y) + 1;
+//			for (int x = 3; x < Idst.cols - 4; x++, o++)
+			for (int x = 1; x < Idst.cols - 1; x++, o++, ++ga1, ++ga2)
+			{
+				b1 = (int)((*ga1)[0]);
+				b2 = (int)((*ga2)[0]);
+				g1 = (int)((*ga1)[1]);
+				g2 = (int)((*ga2)[1]);
+				r1 = (int)((*ga1)[2]);
+				r2 = (int)((*ga2)[2]);
+				int index = 0;
+				//r-g
+				int max = r1 - g2;
+				//g-r
+				dg = g1 - r2;
+				if(max < dg) {max = dg; index = 1;}
+				//y-b
+				yellow = (g1+r1)>>1;
+				dg = yellow - b2;
+				if(max < dg) {max = dg; index = 2;}
+				//b-y
+				yellow = (g2+r2)>>1;
+				dg = b1 - yellow;
+				if(max < dg) {max = dg; index = 3;}
+				//white-black
+				white = (r1+g1+b1)/3;
+				black = ((r2+g2+b2)/3);
+				dg = white - black;
+				if(max < dg) {max = dg; index = 4;}
+				//black-white
+				if(max < -dg) {max = -dg; index = 5;}
+				dg = (int)((*(ga1 - 1))[2]) - (int)((*(ga1 + 1))[1]);
+				//dx_rg
+				if(dg < 0) dg = -dg;
+				if(max < dg) {max = dg; index = 6;}
+				//dy_rg
+				dg = (int)(Idst.at<Vec3b> (y-1,x)[2]) - (int)(Idst.at<Vec3b> (y+1,x)[1]);
+				if(dg < 0) dg = -dg;
+				if(max < dg) {max = dg; index = 7;}
+
+
+//				vals[0] = Idst.at<Vec3b> (y - 2, x + 3)[2];
+//				vals[1] = Idst.at<Vec3b>     (y, x - 3)[0];
+//				vals[2] = Idst.at<Vec3b> (y + 1, x + 1)[0];
+//				vals[3] = Idst.at<Vec3b> (y - 3, x - 3)[1];
+//				vals[4] = Idst.at<Vec3b>     (y - 2, x)[2];
+//				vals[5] = Idst.at<Vec3b> (y - 1, x + 1)[0];
+//				vals[6] = Idst.at<Vec3b> (y + 2, x + 2)[1];
+//				vals[7] = Idst.at<Vec3b> (y - 1, x - 1)[1];
+
+//				uchar max = 0;
+//				int index = 0;
+//				for (int i = 0; i < 8; ++i)
+//				{
+//					if (vals[i] > max)
+//					{
+//						max = vals[i];
+//						index = i;
+//					}
+//				}
+				CALCFEAT_DEBUG_3(cnt[1<<index] += 1;);
+				CALCFEAT_DEBUG_4(
+						if(!(y%40)&&(!(x%40)))
+						{
+							cout << "vals: ";
+							for(int i = 0; i<8; ++i)
+							{
+								cout << i <<":"<<(int)vals[i]<<" ";
+							}
+							cout << "\n max is "<<(int)max<<" at index "<<index<<endl;
+							cout << "which has byte rep "<< (int)(1<<index)<< endl;
+						}
+				);
+				*o = (uchar)1 << index;
+
+			}
+		}
+	}
+	else //Use mask
+	{
+		cout << "Mask" << endl;
+		CALCFEAT_DEBUG_3(cout << "With mask"<<endl;);
+		for (int y = 1; y < Idst.rows - 1; y++)
+		{
+
+			const uchar *m = temp.ptr<uchar> (y) + 1;
+			uchar *o = Icolorord.ptr<uchar> (y) + 1;
+			Vec3b *ga1 = Idst.ptr<Vec3b> (y) + 1;
+			Vec3b *ga2 = Idst2.ptr<Vec3b> (y) + 1;
+
+			for (int x = 1; x < Idst.cols - 1; x++, o++,++m,++ga1,++ga2)
+			{
+				if (!(*m))
+					continue;
+				b1 = (int)((*ga1)[0]);
+				b2 = (int)((*ga2)[0]);
+				g1 = (int)((*ga1)[1]);
+				g2 = (int)((*ga2)[1]);
+				r1 = (int)((*ga1)[2]);
+				r2 = (int)((*ga2)[2]);
+				int index = 0;
+				//r-g
+				int max = r1 - g2;
+				//g-r
+				dg = g1 - r2;
+				if(max < dg) {max = dg; index = 1;}
+				//y-b
+				yellow = (g1+r1)>>1;
+				dg = yellow - b2;
+				if(max < dg) {max = dg; index = 2;}
+				//b-y
+				yellow = (g2+r2)>>1;
+				dg = b1 - yellow;
+				if(max < dg) {max = dg; index = 3;}
+				//white-black
+				white = (r1+g1+b1)/3;
+				black = ((r2+g2+b2)/3);
+				dg = white - black;
+				if(max < dg) {max = dg; index = 4;}
+				//black-white
+				if(max < -dg) {max = -dg; index = 5;}
+				dg = (int)((*(ga1 - 1))[2]) - (int)((*(ga1 + 1))[1]);
+				//dx_rg
+				if(dg < 0) dg = -dg;
+				if(max < dg) {max = dg; index = 6;}
+				//dy_rg
+				dg = (int)(Idst.at<Vec3b> (y-1,x)[2]) - (int)(Idst.at<Vec3b> (y+1,x)[1]);
+				if(dg < 0) dg = -dg;
+				if(max < dg) {max = dg; index = 7;}
+
+				//				vals[0] = Idst.at<Vec3b> (y - 2, x + 3)[2];
+//				vals[1] = Idst.at<Vec3b> (y, x - 3)[0];
+//				vals[2] = Idst.at<Vec3b> (y + 1, x + 1)[0];
+//				vals[3] = Idst.at<Vec3b> (y - 3, x - 3)[1];
+//				vals[4] = Idst.at<Vec3b> (y - 2, x)[2];
+//				vals[5] = Idst.at<Vec3b> (y - 1, x + 1)[0];
+//				vals[6] = Idst.at<Vec3b> (y + 2, x + 2)[1];
+//				vals[7] = Idst.at<Vec3b> (y - 1, x - 1)[1];
+//				uchar max = 0;
+//				int index = 0;
+//				for (int i = 0; i < 8; ++i)
+//				{
+//					if (vals[i] > max)
+//					{
+//						max = vals[i];
+//						index = i;
+//					}
+//				}
+				CALCFEAT_DEBUG_3(cnt[1<<index] += 1;);
+
+				CALCFEAT_DEBUG_4(
+						if(!(y%40)&&(!(x%40)))
+						{
+							cout << "vals: ";
+							for(int i = 0; i<8; ++i)
+							{
+								cout << i <<":"<<(int)vals[i]<<" ";
+							}
+							cout << "\n max is "<<(int)max<<" at index "<<index<<endl;
+							cout << "which has byte rep "<< (int)((uchar)1<<index)<< endl;
+						}
+				);
+				*o = (uchar)1 << index;
+			}
+		}
+	}
+	CALCFEAT_DEBUG_3(
+			for(int i = 0; i< 8; ++i)
+			{
+				int foo = 1<<i;
+				cout <<i<<"("<<foo<<"): "<< cnt[1<<i] << ", " << endl;
+			});
+	CALCFEAT_DEBUG_2(cout << "Exit colorwta::computeColorWTA()"<<endl;
+	imshow("ColorMap",Icolorord);
+	);
 }
 
 //////////////wta depth///////////////////////////////

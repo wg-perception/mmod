@@ -61,7 +61,10 @@
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 /**
- *\brief This class stores multi-mod object models
+ *\brief This class stores features for each modality for an object
+ *
+ * This class has a sorted list (via std::map) of features (for each view)
+ * for each modality (depth, gradient ...) for a given object.
  */
 class mmod_mode
 {
@@ -113,10 +116,12 @@ public:
 	 * @param object_ID			Object name to store if we learn a template
 	 * @param framenum			Frame number of this object, so that we can reconstruct pose from the database
 	 * @param learn_thresh		If no features from f match above this, learn a new template.
+	 *                          Set to zero to learn all templates (no match search is then done)
+	 * @param Score				If set, fill with patch match score
 	 * @return					Returns index of newly learned template, or -1 if a template already covered
 	 */
 	int learn_a_template(cv::Mat &Ifeat, cv::Mat &Mask, std::string &session_ID, std::string &object_ID,
-			int framenum, float learn_thresh);
+			int framenum, float learn_thresh, float *Score=0);
 
 
 	/**

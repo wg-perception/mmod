@@ -2,7 +2,7 @@
  * mmod_color.h
  *
  *  Created on: Sep 13, 2011
- *      Author: vadmin
+ *      Author: Gary Bradski
  */
 
 #ifndef MMOD_COLOR_H_
@@ -26,7 +26,7 @@
   #define CALCFEAT_DEBUG_2(X) do{}while(false)
   #endif
   #if CALCFEAT_VERBOSE >= 3
-  #define CALCFEAT_DEBUG_3(X) do{CALCFEAT_SHOW() X}while(false)
+  #define CALCFEAT_DEBUG_3(X) do{X}while(false)
   #else
   #define CALCFEAT_DEBUG_3(X) do{}while(false)
   #endif
@@ -73,6 +73,20 @@ public:
 	void computeColorOrder(const cv::Mat &Iin, cv::Mat &Icolorord, cv::Mat Mask);
 };
 
+////////////COLOR HLS///////////////////////////////////////////////////////////
+class colorhls {
+	cv::Mat Itmp;
+	cv::Mat grad_x, grad_y, grad;
+	cv::Mat abs_grad_x, abs_grad_y;
+public:
+	/**
+	 * \brief Compute a color linemod feature based on Hue values near gradients
+	 * @param Iin  Input BGR image CV_8UC3
+	 * @param Icolorord Result image CV_8UC1
+	 * @param Mask  compute on masked region (can be left empty) CV_8UC3 or CV_8UC1 ok
+	 */
+	void computeColorHLS(const cv::Mat &Iin, cv::Mat &Icolorord, const cv::Mat Mask);
+};
 
 ////////////COLOR WTA/////////////////////////////////////////////////////////////
 /**
@@ -80,7 +94,7 @@ public:
  * "The Power of Comparative Reasoning
  */
 class colorwta {
-	cv::Mat Idst;
+	cv::Mat Idst, Idst2;
 public:
 	/**
 	 * \brief Compute a winner take all inspired color feature.
