@@ -189,6 +189,17 @@ public:
 
 	mmod_filters(std::string modality) { mode = modality;};
 
+	//SERIALIZATION
+    template<class Archive>
+    void serialize(Archive & ar, const unsigned int version)
+    {
+        ar & ObjViews;
+        ar & mode;
+        update_viewindex();
+    }
+
+
+
 	/**
 	 * \brief For a given object, if the view index is not updated, update it so that
 	 * \brief framenum will return it's learned index

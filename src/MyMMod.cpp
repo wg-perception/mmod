@@ -1038,6 +1038,21 @@ int main(int argc, char* argv[]) {
 		waitKey();
 	}
 	filt.update_viewindex(); //Update the framenum => view index map.
+	{
+		cout << "Writing models filt.txt out" << endl;
+		std::ofstream ofs("filt.txt");
+		boost::archive::text_oarchive oa(ofs);
+		oa << filt;
+	}
+    // ----
+	mmod_filters filt2("foo");
+    {
+    	cout << "Reading models filt.txt in" << endl;
+    	std::ifstream ifs("filt.txt");
+    	boost::archive::text_iarchive ia(ifs);
+        // read class state from archive
+    	ia >> filt2;
+    }
 	///////////////////////////////////////////////////////////////////
 	//TEST (note that you can also match_all_objects_at_a_point(...):
 	///////////////////////////////////////////////////////////////////
@@ -1086,12 +1101,10 @@ int main(int argc, char* argv[]) {
 		vector<int>::iterator fit = Objs.frame_nums.begin();
 		for(;nit != nitend; ++nit, ++rit, ++fit, ++flit)
 		{
-			float fscore = filt.match_here(colorfeat,*nit,*rit,*fit);
+			float fscore = filt2.match_here(colorfeat,*nit,*rit,*fit);
 			cout << "Filter: For Obj " <<*nit<<", at("<<(*rit).x<<","<<(*rit).y<<","<<(*rit).width<<","<<(*rit).height<<
 					") filter score = "<<fscore<< ", vs objscore = " << *flit << endl;
 		}
-
-		float match_here(const cv::Mat &I, std::string objname, cv::Rect &R, int framenum);
 
 
 		//TO DISPLAY MATCHES (NON-MAX SUPPRESSED)
