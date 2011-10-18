@@ -118,10 +118,11 @@ public:
 	 * @param learn_thresh		If no features from f match above this, learn a new template.
 	 *                          Set to zero to learn all templates (no match search is then done)
 	 * @param Score				If set, fill with patch match score
+	 * @param clean		  		If true, do a 3x3 max filter to the features. Default is false
 	 * @return					Returns index of newly learned template, or -1 if a template already covered
 	 */
 	int learn_a_template(cv::Mat &Ifeat, cv::Mat &Mask, std::string &session_ID, std::string &object_ID,
-			int framenum, float learn_thresh, float *Score=0);
+			int framenum, float learn_thresh, float *Score=0, bool clean = false);
 
 
 	/**

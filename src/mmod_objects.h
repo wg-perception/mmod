@@ -150,10 +150,11 @@ public:
 	 *                          NOTE: templates are not blurred, so your threshold will *have* to be a good deal lower than
 	 *                                you have it set for learn mode.  Maybe something like 0.3 lower.
 	 * @param Score				If set, fill with patch match score
+	 * @param clean		  		If true, do a 3x3 max filter to the features. Default is false
 	 * @return					Returns total number of templates for this object
 	 */
 	int learn_a_template(std::vector<cv::Mat> &Ifeat, const std::vector<std::string> &mode_names, cv::Mat &Mask,
-			std::string &session_ID, std::string &object_ID, int framenum, float learn_thresh, float *Score = 0);
+			std::string &session_ID, std::string &object_ID, int framenum, float learn_thresh, float *Score = 0, bool clean = false);
 
 };
 

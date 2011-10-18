@@ -65,16 +65,27 @@ mmod_mode::mmod_mode(const string &mode_name)
 	 * @param framenum			Frame number of this object, so that we can reconstruct pose from the database
 	 * @param learn_thresh		If no features from f match above this, learn a new template. Set to zero to learn all templates
 	 * @param Score				If set, fill with patch match score
+	 * @param clean		  		If true, do a 3x3 max filter to the features. Default is false
 	 * @return					Returns index of newly learned template, or -1 if a template already covered
 	 */
 	int mmod_mode::learn_a_template(Mat &Ifeat, Mat &Mask, string &session_ID, string &object_ID,
-	                                int framenum, float learn_thresh, float *Score)
+	                                int framenum, float learn_thresh, float *Score, bool clean)
 	{
 	  MODE_DEBUG_1(
-	      cout << "In mmod_mode::learn_a_template, sessionID:" << session_ID << " objID:"<<object_ID<<" frame#:"<<framenum<<" learn_thresh:"<<learn_thresh<< endl;
+	      cout << "In mmod_mode::learn_a_template, sessionID:" << session_ID << " objID:"<<object_ID<<
+	      " frame#:"<<framenum<<" learn_thresh:"<<learn_thresh<< " clean = " << clean<<endl;
 	  );
+//	  cout << "  pre util.learn" <<endl;
+//		Mat_<uchar>::iterator c = Ifeat.begin<uchar>();
+//		for(int i = 0;c != Ifeat.end<uchar>(); ++c,++i)
+//		{
+//			if(*c != 0&&*c != 1&&*c != 2&&*c != 4&&*c!=8&&*c!=16&&*c!=32&&*c!=64&&*c!=128)
+//				cout << i<<": bad value of c:"<<(int)*c<<endl;
+//		}
+
 	  mmod_features ftemp(session_ID, object_ID);  //We'll learn a provisional feature here
-	  int index = util.learn_a_template(Ifeat, Mask, framenum, ftemp);
+	  int index = util.learn_a_template(Ifeat, Mask, framenum, ftemp, clean);
+
 	  MODE_DEBUG_2(
 	      cout << "index = " << index << ", learned util.learn_a_template" << endl;
 		  cout << "ftemp max_bounds:" << ftemp.max_bounds.x << ", " << ftemp.max_bounds.y << ", "<< ftemp.max_bounds.width << ", "<< ftemp.max_bounds.height << endl;
@@ -114,7 +125,7 @@ mmod_mode::mmod_mode(const string &mode_name)
 	    	score = util.match_a_patch_bruteforce(patch, pp, objs[object_ID], match_index);
 	    if(Score) *Score = score; //Let user see the patch match score
 	    MODE_DEBUG_2(
-    	    cout << "frame#"<<framenum<<" mmod_mode::learn_a_template("<<object_ID<<", "<<match_index<<"), match a patch score " << score << endl;
+    	    cout << "frame#"<<framenum<<" mmod_mode::learn_a_template("<<object_ID<<", "<<match_index<<"), match a patch score " << score << " clean = " << clean<<endl;
 	        cout << object_ID << " at match_index = " << match_index << ", score from bfm = " << score << " learn_thresh = " << learn_thresh << endl;
 	    );
 	    if(score <= learn_thresh)

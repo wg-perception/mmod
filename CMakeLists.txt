@@ -13,3 +13,5 @@ include_directories(
     )
 add_subdirectory(src)
 
+#message(STATUS "C++ flags: ${CMAKE_CXX_FLAGS}")
+ 

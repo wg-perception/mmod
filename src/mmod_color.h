@@ -37,7 +37,47 @@
   #endif
 
 
+
+////////////COLOR HLS///////////////////////////////////////////////////////////
+class colorhls {
+	cv::Mat Itmp;
+	cv::Mat grad_x, grad_y, grad;
+	cv::Mat abs_grad_x, abs_grad_y;
+public:
+	/**
+	 * \brief Compute a color linemod feature based on Hue values near gradients
+	 * @param Iin  Input BGR image CV_8UC3
+	 * @param Icolorord Result image CV_8UC1
+	 * @param Mask  compute on masked region (can be left empty) CV_8UC3 or CV_8UC1 ok
+	 */
+	void computeColorHLS(const cv::Mat &Iin, cv::Mat &Icolorord, const cv::Mat &Mask);
+};
+
+////////////Gradients///////////////////////////////////////////////////////////
+class gradients {
+	cv::Mat mag0, phase0, mag1, phase1, mag2, phase2;			//Temp store for gradient processing
+	cv::Mat grad_x, grad_y;
+	cv::Mat Itmp;
+public:
+
+	////////////////////////GRADIENT FEATURES//////////////////////////////////////////////
+	/**
+	 * \brief Compute gradient linemod features from the maximum color plane gradient. Ignores weak gradients
+	 * @param Iin			Input BGR, CV_8UC3 image
+	 * @param Icolorord		Output CV_8UC1 image
+	 * @param Mask			compute on masked region (can be left empty) CV_8UC3 or CV_8UC1 ok
+	 */
+	void computeGradients(const cv::Mat &Iin, cv::Mat &Icolorord, const cv::Mat Mask);
+
+};
+
+
+
+#if 0
 //////////////////////////////////////////////////////////////////////////////////////////////
+// DEFUNCT EFFORTS
+//////////////////////////////////////////////////////////////////////////////////////////////
+
 /**  This is a "line mod type way of classing color
  * mmodcolor  Produces color coded images, each pixel converted to one of 8 bits:
  * bit Color Order  number
@@ -73,20 +113,7 @@ public:
 	void computeColorOrder(const cv::Mat &Iin, cv::Mat &Icolorord, cv::Mat Mask);
 };
 
-////////////COLOR HLS///////////////////////////////////////////////////////////
-class colorhls {
-	cv::Mat Itmp;
-	cv::Mat grad_x, grad_y, grad;
-	cv::Mat abs_grad_x, abs_grad_y;
-public:
-	/**
-	 * \brief Compute a color linemod feature based on Hue values near gradients
-	 * @param Iin  Input BGR image CV_8UC3
-	 * @param Icolorord Result image CV_8UC1
-	 * @param Mask  compute on masked region (can be left empty) CV_8UC3 or CV_8UC1 ok
-	 */
-	void computeColorHLS(const cv::Mat &Iin, cv::Mat &Icolorord, const cv::Mat Mask);
-};
+
 
 ////////////COLOR WTA/////////////////////////////////////////////////////////////
 /**
@@ -128,5 +155,6 @@ public:
 	 */
 	void computeDepthWTA(const cv::Mat &Iin, cv::Mat &Icolorord, const cv::Mat Mask);
 };
+#endif
 
 #endif /* MMOD_COLOR_H_ */

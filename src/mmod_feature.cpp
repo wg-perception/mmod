@@ -36,6 +36,7 @@ mmod_features::mmod_features(string &sID, string &oID)
 		object_ID = oID;
 		max_bounds.width = -1;
 		max_bounds.height = -1;
+		wstep = 0; //Since we're learning new features, reset flag to convert offsets from cv::Point to uchar*
 	}
 
 	/**
@@ -74,6 +75,7 @@ mmod_features::mmod_features(string &sID, string &oID)
 	 */
 	int mmod_features::insert(mmod_features &f, int index)
 	{
+		wstep = 0; //Since we're learning new features, reset flag to convert offsets from cv::Point to uchar*
 		int size = (int)f.features.size();
 		if(index >= size)
 		{
@@ -94,4 +96,34 @@ mmod_features::mmod_features(string &sID, string &oID)
 		max_bounds.x = -max_bounds.width/2;
 		max_bounds.y = -max_bounds.height/2;
 		return ((int)features.size() - 1);
+	}
+
+	/**
+	 * \brief  Thus function is called automatically from mmod_general::match_a_patch_bruteforce
+	 * \brief  it converts cv::Point offsets into uchar offsets for faster lookup
+	 *
+	 * This function is purely to optimize matching speed using pre-computed pointer offsets
+	 *
+	 * @param I Any image whose size is the same as currently being used for matching
+	 */
+	void mmod_features::convertPoint2PointerOffsets(const Mat &I)
+	{
+		if(I.step1() == wstep) return;  //This was already set
+		wstep = I.step1();				//New row step size of image
+		poff.clear(); 					//Reset former pointer offset vector
+		vector<int> _poff;
+		int yy,xx;
+		vector<vector<Point> >::iterator oit;	//offset set iterator (each set of offsets)
+		vector<Point>::iterator _oit; 			//offset values iterator (offsets to each feature within the bbox set)
+		for(oit = offsets.begin(); oit != offsets.end(); ++oit)
+		{
+			_poff.clear();
+			for(_oit = (*oit).begin(); _oit != (*oit).end(); ++_oit)
+			{
+			    yy = (*_oit).y;
+			    xx = (*_oit).x;
+			    _poff.push_back(xx + yy*wstep);
+			}
+			poff.push_back(_poff);
+		}
 	}

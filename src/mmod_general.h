@@ -38,14 +38,19 @@
 #else
 #define GENL_DEBUG_4(X) do{}while(false)
 #endif
-
+#define FLOATLUT  //Appears that this is faster.
 //////////////////////////////////////////////////////////////////////////////////////////////
 class mmod_general
 {
 public:
 	std::vector<cv::Mat> acc,acc2;
 	int lut[256];//Lookup table converting bit position in a byte (the equivalent number) to its actual bit position
+#ifdef FLOATLUT
 	std::vector<std::vector<float> > matchLUT; //matchLUT[lut[model_uchar]][image_uchar];
+#else
+	std::vector<std::vector<int> > matchLUT; //matchLUT[lut[model_uchar]][image_uchar];
+#endif
+//	std::vector<std::vector<char> > matchLUT; //matchLUT[lut[model_uchar]][image_uchar];
 
 	/**
 	 * \brief mmod_general constructor. Fills Cos distances in matchLUT.
@@ -76,12 +81,23 @@ public:
 	 * \brief This takes in binarized 8U_C1 image and colorizes it for visualization.
 	 *
 	 * Colors are Bright red 128, dull red 64, bright yellow 32, dull yellow 16, bright purple 8,
-	 * dull purple 4, blue 2, dull blue 1, black 0
+	 * dull purple 4, blue 2, dull blue 1, black 0. I actually like this for visualizing gradients too by color
 	 *
 	 * @param I		input binarized image [128,64,32,16,8,4,2,1,0] CV_8UC1
 	 * @param iB	output colorized image CV_8UC3
 	 */
 	void visualize_binary_image(const cv::Mat &I, cv::Mat &iB);
+
+	/**
+	 * \brief Take an 8UC1 binarized gradient image and visualize it into a color image
+	 * visualize_binary_image() will visualize the gradient directions by color -- I prefer that.
+	 *
+	 * @param ori	Gradient image converted to 8 bit orientations
+	 * @param vis	3 Chanel image to draw into
+	 * @param skip	Draw gradients every skip pixels, DEFAULT 1
+	 * @param R		Rectangular region of interest. DEFAULT: View whole image.
+	 */
+	void visualize_gradient_orientations(cv::Mat &ori, cv::Mat &vis, int skip = 1, cv::Rect R=cv::Rect(0,0,0,0));
 
 	/**
 	 * \brief Draw a feature (vector<uchar> with offsets (vector<Point>) into an image at a point. Does bounds checking
@@ -159,8 +175,11 @@ public:
 	 * @param image_uchar  From the feature image
 	 * @return 			Match value
 	 */
+#ifdef FLOATLUT
 	float match(uchar &model_uchar, uchar &image_uchar);
-
+#else
+	int match(uchar &model_uchar, uchar &image_uchar);
+#endif
 
 	/**
 	 * \brief Suppress overlapping rectangle to be the rectangle with the highest score
@@ -196,6 +215,21 @@ public:
 	 */
 	int learn_a_template(cv::Mat &Ifeatures,  cv::Mat &Mask, int framenum, mmod_features &features, bool clean = false );
 
+	/**
+	 * \brief Score the current scene's recognition results assuming only one type of trained object in the scene
+	 * @param rv				Bounding rectangle of proposed object recognitions
+	 * @param ids				Names of the proposed recognized objects
+	 * @param currentObj		Name of trained object
+	 * @param Mask				Where the object(s) is(are)
+	 * @param true_positives	Number of correct detections
+	 * @param false_positives	Number of false identifications
+	 * @param wrong_object		Number of wrongly classified objects of the trained type
+	 * @param R					Rectangle computed from bounding box of Mask on pixels
+	 * @return					true_positives, -1 error
+	 */
+	int score_with_ground_truth(const std::vector<cv::Rect> &rv, const std::vector<std::string> &ids,
+			std::string &currentObj, cv::Mat &Mask, int &true_positives,
+			int &false_positives, int &wrong_object, cv::Rect &R);
 
 }; //end mmod_general
 

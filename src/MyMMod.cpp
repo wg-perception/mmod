@@ -6,6 +6,7 @@
 #include <opencv2/opencv.hpp>
 #include <iostream>
 #include <stdio.h>
+#include <valgrind/callgrind.h>
 
 #include "mmod_general.h"
 #include "mmod_objects.h"
@@ -656,7 +657,7 @@ int test_object_rec() {
 	mmod_objects Objs;
 	cout << "mmod_objects::learn_a_template #1" << endl;
 	string sT1("ST1"), oT("T"), oX("X");
-	int num_templ = Objs.learn_a_template(T1,modesGCD, Mask, sT1, oT, 1, (float)1.0);
+	int num_templ = Objs.learn_a_template(T1,modesGCD, Mask, sT1, oT, 1, (float)1.0, 0,true);
 	cout << "# of templates from first learn = " << num_templ << "\n" << endl;
 
 	cout << "\n\nmmod_objects::learn_a_template #2" << endl;
@@ -672,7 +673,7 @@ int test_object_rec() {
 		}
 	}
 	string sT2("ST2");
-	num_templ = Objs.learn_a_template(T2,modesDCG, Mask2, sT2, oX, 2, (float)0.5);
+	num_templ = Objs.learn_a_template(T2,modesDCG, Mask2, sT2, oX, 2, (float)0.5,0, true);
 	cout << "# of templates from second learn = " << num_templ << "\n" << endl;
 
 	cout << "\nOBJECT MATCHING\n" << endl;
@@ -909,11 +910,12 @@ int main(int argc, char* argv[]) {
 	mmod_objects Objs; //Object train and test.
 	mmod_general g;    //General utilities
 	mmod_filters filt("Color"); //For post filter tests
-	colorhls calcHLS;	//Feature processing
-	depthwta  calcDepth;	//Feature processing
-	Mat colorfeat, depthfeat;  //To hold feature outputs. These will be CV_8UC1 images
+	colorhls calcHLS;	//Color feature processing
+//	depthwta  calcDepth;	//Depth feature processing
+	gradients calcGrad;    //Gradient feature processing
+	Mat colorfeat, depthfeat, gradfeat;  //To hold feature outputs. These will be CV_8UC1 images
 	Mat ColorRaw0,Mask0,ColorRaw,Mask,noMask;
-	Mat Ivis;
+	Mat Ivis,Gvis;
 	vector<Mat> ColorPyr,MaskPyr;
 	vector<Mat> FeatModes; //List of images
 	vector<string> modesCD; //Names of modes (color and depth)
@@ -921,11 +923,13 @@ int main(int argc, char* argv[]) {
 	int framenum = 0;
 	//SET UP:
 	//Set up our modes (right now we have color and depth. Lets say we use that order: Color and Depth)
-	modesCD.push_back("Color");
+//	modesCD.push_back("Color");
+	modesCD.push_back("Grad");
 	//		modesCD.push_back("Depth");
 
 	namedWindow("raw",0);
 	namedWindow("ColorFeat",0);
+	namedWindow("GradFeat",0);
 	namedWindow("Matches",0);
 	namedWindow("ColorFeatPreOR",0);
 	namedWindow("ColorFeatPostOR",0);
@@ -934,11 +938,11 @@ int main(int argc, char* argv[]) {
 #define ORAMT 4		//How much to spread ORing
 #define SKIPAMT 8	//SKIP Amount (skipX, skipY)
 	float learn_thresh = 0.675; //Just a guess
-	float match_threshold = 0.95; //Total guess
+	float match_threshold = 0.9; //Total guess
 	float frac_overlap = 0.5; //the fraction of overlap between 2 above threshold feature's bounding box rectangles that constitutes "overlap"
 
 	//CREATE TRAIN AND TEST SETS
-	vector<string> trainTeaI,trainTeaM,testTeaI;
+	vector<string> trainTeaI,trainTeaM,testTeaI,testTeaM;
 	for(int i = 0; i<filelistItea.size(); ++i)
 	{
 		if(!(i%4)) //Train
@@ -949,9 +953,10 @@ int main(int argc, char* argv[]) {
 		else //test
 		{
 			testTeaI.push_back(filelistItea[i]);
+			testTeaM.push_back(filelistMtea[i]);
 		}
 	}
-	vector<string> trainEggI,trainEggM,testEggI;
+	vector<string> trainEggI,trainEggM,testEggI,testEggM;
 	for(int i = 0; i<filelistItea.size(); ++i)
 	{
 		if(!(i%4)) //Train
@@ -962,14 +967,18 @@ int main(int argc, char* argv[]) {
 		else //test
 		{
 			testEggI.push_back(filelistIegg[i]);
+			testEggM.push_back(filelistMegg[i]);
 		}
 	}
+	cout <<"testEggI,M = "<<testEggI.size()<<", "<<testEggM.size()<<endl;
+	cout <<"testTeaI,M = "<<testTeaI.size()<<", "<<testTeaM.size()<<endl;
 	///////////////////////////////////////////////////////////////////
 	//TRAINING
 	///////////////////////////////////////////////////////////////////
 	cout << "\nSTART TRAINING LOOP TEA ("<<trainTeaI.size()<<" images):" << endl;
 	SessionID = "Ses1"; ObjectName = "Tea";  //Fill these in.
 	float Score;
+	Mat_<uchar>::iterator c;
 	for(int i = 0; i<trainTeaI.size(); ++i, ++framenum)
 	{
 		ColorRaw0 = imread(trainTeaI[i]);
@@ -982,17 +991,20 @@ int main(int argc, char* argv[]) {
 
 		//PROCESS TO GET FEATURES
 		calcHLS.computeColorHLS(ColorRaw,colorfeat,Mask);
-
+		calcGrad.computeGradients(ColorRaw,gradfeat,Mask);
+		g.visualize_binary_image(gradfeat, Gvis);
+		imshow("GradFeat",Gvis);
 		//		calcDepth.computeDepthWTA(DepthRaw, depthfeat, Mask);
 		FeatModes.clear();
-		FeatModes.push_back(colorfeat);
+		FeatModes.push_back(gradfeat);
+//		FeatModes.push_back(colorfeat);
 		//		FeatModes.push_back(depthfeat);
 
 		//LEARN A TEMPLATE (for now, it will slow down with each view learned).
 		int num_templ = Objs.learn_a_template(FeatModes,modesCD, Mask,
-				SessionID, ObjectName, framenum, learn_thresh, &Score);
+				SessionID, ObjectName, framenum, learn_thresh, &Score, true);
 		cout << "#"<<i<<": Number of Tee templates learned = " << num_templ <<", Score = "<<Score<< endl;
-		int num_fs = filt.learn_a_template(colorfeat,Mask,"Tea",framenum);
+		int num_fs = filt.learn_a_template(colorfeat,Mask,"Tea",framenum, true);
 		cout << "Filter templates = " << num_fs << endl;
 		imshow("raw",ColorRaw);
 		//	cm.computeColorOrder(cimage,Ibin,M);
@@ -1000,7 +1012,7 @@ int main(int argc, char* argv[]) {
 		g.visualize_binary_image(colorfeat,Ivis);
 		imshow("ColorFeat",Ivis);
 		cout << "Hit any key to continue" << endl;
-		waitKey();
+		waitKey(3);
 	}
 
 	cout << "\nSTART TRAINING LOOP Egg ("<<trainEggI.size()<<" images):" << endl;
@@ -1016,18 +1028,23 @@ int main(int argc, char* argv[]) {
 		imshow("raw",ColorRaw);
 
 		//PROCESS TO GET FEATURES
+		colorfeat= Scalar::all(0);
 		calcHLS.computeColorHLS(ColorRaw,colorfeat,Mask);
+		calcGrad.computeGradients(ColorRaw,gradfeat,Mask);
+		g.visualize_binary_image(gradfeat, Gvis);
+		imshow("GradFeat",Gvis);
 
 		//		calcDepth.computeDepthWTA(DepthRaw, depthfeat, Mask);
 		FeatModes.clear();
-		FeatModes.push_back(colorfeat);
+		FeatModes.push_back(gradfeat);
+//		FeatModes.push_back(colorfeat);
 		//		FeatModes.push_back(depthfeat);
 
 		//LEARN A TEMPLATE (for now, it will slow down with each view learned).
 		int num_templ = Objs.learn_a_template(FeatModes,modesCD, Mask,
-				SessionID, ObjectName, framenum, learn_thresh, &Score);
+				SessionID, ObjectName, framenum, learn_thresh, &Score, true);
 		cout << "#"<<i<<": Number of Egg templates learned = " << num_templ <<", Score = "<<Score<< endl;
-		int num_fs = filt.learn_a_template(colorfeat,Mask,"Egg",framenum);
+		int num_fs = filt.learn_a_template(colorfeat,Mask,"Egg",framenum, true);
 		cout << "Filter egg templates = " << num_fs << endl;
 		imshow("raw",ColorRaw);
 		//	cm.computeColorOrder(cimage,Ibin,M);
@@ -1035,10 +1052,10 @@ int main(int argc, char* argv[]) {
 		g.visualize_binary_image(colorfeat,Ivis);
 		imshow("ColorFeat",Ivis);
 		cout << "Hit any key to continue" << endl;
-		waitKey();
+		waitKey(3);
 	}
-	filt.update_viewindex(); //Update the framenum => view index map.
-	{
+//	filt.update_viewindex(); //Update the framenum => view index map.
+	{ //Serialize out test
 		cout << "Writing models filt.txt out" << endl;
 		std::ofstream ofs("filt.txt");
 		boost::archive::text_oarchive oa(ofs);
@@ -1046,7 +1063,7 @@ int main(int argc, char* argv[]) {
 	}
     // ----
 	mmod_filters filt2("foo");
-    {
+    { //Serialize in test
     	cout << "Reading models filt.txt in" << endl;
     	std::ifstream ifs("filt.txt");
     	boost::archive::text_iarchive ia(ifs);
@@ -1061,6 +1078,12 @@ int main(int argc, char* argv[]) {
 	int numrawmatches;
 	int teasize = (int)testTeaI.size();
 	int eggsize = (int)testEggI.size();
+	int true_positives, false_positives, wrong_object;
+	int tp_accum = 0, fp_accum = 0, wo_accum = 0;
+	string currentObj;
+	Rect MaskRect;
+
+	CALLGRIND_START_INSTRUMENTATION;
 	for(int i = 0; i<teasize+eggsize; ++i)
 	{
 		if(i<teasize)
@@ -1068,31 +1091,54 @@ int main(int argc, char* argv[]) {
 			ColorRaw0 = imread(testTeaI[i]);
 			buildPyramid(ColorRaw0, ColorPyr, PYRLEVELS);
 			ColorRaw = ColorPyr[PYRLEVELS];
+			Mask0 = imread(testTeaM[i],0);
+			buildPyramid(Mask0,MaskPyr,PYRLEVELS);
+			Mask = MaskPyr[PYRLEVELS];
+			currentObj = "Tea";
 		} else
 		{
 			ColorRaw0 = imread(testEggI[i-teasize]);
 			buildPyramid(ColorRaw0, ColorPyr, PYRLEVELS);
 			ColorRaw = ColorPyr[PYRLEVELS];
+			Mask0 = imread(testEggM[i-teasize],0);
+			buildPyramid(Mask0,MaskPyr,PYRLEVELS);
+			Mask = MaskPyr[PYRLEVELS];
+			currentObj = "Egg";
 		}
 		imshow("raw",ColorRaw);
 
 		calcHLS.computeColorHLS(ColorRaw,colorfeat,noMask);
+		calcGrad.computeGradients(ColorRaw,gradfeat,noMask);
 		g.visualize_binary_image(colorfeat,Ivis);
-		imshow("ColorFeatPreOR",Ivis);
-		g.SumAroundEachPixel8UC1(colorfeat,colorfeat,ORAMT,0);
+		imshow("ColorFeatPreOR",Mask);//Ivis);
+		g.visualize_binary_image(gradfeat,Gvis);
+		imshow("GradFeat",Gvis);
+		g.SumAroundEachPixel8UC1(colorfeat,colorfeat,3,1); //Clean the features of spurious gradients
+		g.SumAroundEachPixel8UC1(colorfeat,colorfeat,ORAMT,0); //Spread features by ORing
 		g.visualize_binary_image(colorfeat,Ivis);
-		imshow("ColorFeatPostOR",Ivis);
+		g.SumAroundEachPixel8UC1(gradfeat,gradfeat,3,1); //Clean the features of spurious gradients
+		g.SumAroundEachPixel8UC1(gradfeat,gradfeat,ORAMT,0); //Spread features by ORing
+		g.visualize_binary_image(gradfeat,Gvis);
+		imshow("ColorFeatPostOR",Gvis);
 		FeatModes.clear();
-		FeatModes.push_back(colorfeat);
+		FeatModes.push_back(gradfeat);
+//		FeatModes.push_back(colorfeat);
 		//		FeatModes.push_back(depthfeat);
 
 		int num_matches = Objs.match_all_objects(FeatModes,modesCD,noMask,
 				match_threshold,frac_overlap,skipX,skipY,&numrawmatches);
+
+		g.score_with_ground_truth(Objs.rv, Objs.ids, currentObj, Mask, true_positives, false_positives,
+				wrong_object, MaskRect);
+		tp_accum += true_positives; fp_accum += false_positives; wo_accum += wrong_object;
 		if(i<teasize)
 			cout << i << "(tea): num_matches = " << num_matches <<", (num_raw_matches = "<< numrawmatches <<")" << endl;
 		else
 			cout << i-teasize << "(egg): num_matches = " << num_matches <<", (num_raw_matches = "<< numrawmatches <<")" << endl;
 
+		cout <<i<< ") Tp: "<<tp_accum<<", Fp: "<<fp_accum<<", Wobj: "<<wo_accum<<endl;
+		if(i>0) cout <<i<< ") Tp: "<<tp_accum<<"("<<(float)tp_accum/(float)i<<"), Fp: "<<fp_accum<<
+				"("<<(float)fp_accum/(float)i<<"), Wobj: "<<wo_accum<<"("<<(float)wo_accum/(float)i<<")"<<endl;
 		//DO POST FILTER CHECKS
 		vector<string>::iterator nit = Objs.ids.begin();
 		vector<string>::iterator nitend = Objs.ids.end();
@@ -1102,25 +1148,35 @@ int main(int argc, char* argv[]) {
 		for(;nit != nitend; ++nit, ++rit, ++fit, ++flit)
 		{
 			float fscore = filt2.match_here(colorfeat,*nit,*rit,*fit);
+			Rect Rinter = *rit & MaskRect;
+			float interarea = Rinter.width*Rinter.height;
+			float maskarea = MaskRect.width * MaskRect.height + 0.000001;
+			if((interarea/maskarea) > 0.65) cout << ">>>> ";
 			cout << "Filter: For Obj " <<*nit<<", at("<<(*rit).x<<","<<(*rit).y<<","<<(*rit).width<<","<<(*rit).height<<
 					") filter score = "<<fscore<< ", vs objscore = " << *flit << endl;
 		}
 
 
 		//TO DISPLAY MATCHES (NON-MAX SUPPRESSED)
+		vector<Rect>::iterator Ri = Objs.rv.begin(), Re = Objs.rv.end();
+		for(; Ri != Re; ++Ri)
+			rectangle(ColorRaw,*Ri,Scalar(0,0,255),2);
+		rectangle(ColorRaw,MaskRect,Scalar(255,0,0),1);
 		Objs.draw_matches(ColorRaw);
 		imshow("Matches",ColorRaw);
 		Objs.cout_matches();
 
 		cout << "\nPRESS FOR NEXT TEST, 'q' to quit" << endl;
-		int k = waitKey();
+		int k = waitKey(3);
 		if(k == 'q') break;
 		if(k == 's') i += 10;
 	}
+	CALLGRIND_STOP_INSTRUMENTATION;
 	destroyWindow("ColorFeatPreOR");
 	destroyWindow("ColorFeatPostOR");
 	destroyWindow("Matches");
 	destroyWindow("ColorFeat");
+	destroyWindow("GradFeat");
 	destroyWindow("raw");
 
 	return 0;

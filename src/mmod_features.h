@@ -81,6 +81,11 @@ public:
 	std::vector<cv::Rect>  bbox;						//bounding box of the features
 	std::vector<std::vector<int> > quadUL,quadUR,quadLL,quadLR;//List of features in each quadrant
 	cv::Rect max_bounds;								//This rectangle contains the maximum width and and height spanned by all the bbox rectangles
+	//---temp---//
+	int wstep;											//Flag to convert offsets from cv::Point to uchar*
+														//   when set, it is set to the row size of images
+	std::vector<std::vector<int> > poff;							//Pointer offsets computed from cv::Point offests above.
+
 	mmod_features();
 
 	mmod_features(std::string &sID, std::string &oID);
@@ -113,10 +118,8 @@ public:
         ar & quadLL;
         ar & quadLR;
         ar & max_bounds;
+        wstep = 0;
     }
-
-
-
 
 	/**
 	 * \brief Return the overall bounding rectangle of the vector<Rect>  bbox;
@@ -142,6 +145,14 @@ public:
 	 */
 	int insert(mmod_features &f, int index);
 
+	/**
+	 * \brief  Thus function is called automatically from mmod_general::match_a_patch_bruteforce
+	 * \brief  it converts cv::Point offsets into uchar offsets for faster lookup
+	 *
+	 * This function is purely to optimize matching speed using pre-computed pointer offsets
+	 * @param I Any image whose size is the same as currently being used for matching
+	 */
+	void convertPoint2PointerOffsets(const cv::Mat &I);
 
 };
 

@@ -403,14 +403,16 @@ mmod_objects::match_all_objects(const vector<Mat> &I, const vector<string> &mode
  * @param framenum			Frame number of this object, so that we can reconstruct pose from the database
  * @param learn_thresh		If no features from f match above this, learn a new template.
  * @param Score				If set, fill with patch match score
+ * @param clean		  		If true, do a 3x3 max filter to the features. Default is false
  * @return					Returns total number of templates for this object
  */
 int
 mmod_objects::learn_a_template(vector<Mat> &Ifeat, const vector<string> &mode_names, Mat &Mask, string &session_ID,
-                               string &object_ID, int framenum, float learn_thresh, float *Score)
+                               string &object_ID, int framenum, float learn_thresh, float *Score, bool clean)
 {
   OBJS_DEBUG_1(
-      cout << "mmod_objects::learn_a_template(sesID:"<<session_ID<<", objID:"<<object_ID<<" frame#:"<<framenum<<" learn_thresh:"<<learn_thresh<<endl;
+      cout << "mmod_objects::learn_a_template(sesID:"<<session_ID<<", objID:"<<object_ID<<" frame#:"<<framenum
+           <<" learn_thresh:"<<learn_thresh<<" clean = "<<clean<<endl;
 	  vector<string>::const_iterator vsi;
 	  for(vsi=mode_names.begin();vsi != mode_names.end();++vsi)
 	  {
@@ -418,16 +420,25 @@ mmod_objects::learn_a_template(vector<Mat> &Ifeat, const vector<string> &mode_na
 	  }
 	  cout << "Ifeat[0].rows,cols=" << Ifeat[0].rows << ","<<Ifeat[0].cols<<" learn_thresh:"<<learn_thresh<<endl;
   );
+  cout << "In mmod_obj::learn a template" << endl;
   vector<Mat>::iterator Iit;
   vector<string>::const_iterator mit;
   int num_models = 0;
   for (Iit = Ifeat.begin(), mit = mode_names.begin(); Iit != Ifeat.end(); ++Iit, ++mit)
   {
+	  cout << "obj::learn_a_template"<<endl;
+		Mat_<uchar>::iterator c = (*Iit).begin<uchar>();
+		for(int i = 0;c != (*Iit).end<uchar>(); ++c,++i)
+		{
+			if(*c != 0&&*c != 1&&*c != 2&&*c != 4&&*c!=8&&*c!=16&&*c!=32&&*c!=64&&*c!=128)
+				cout << i<<": bad value of c:"<<(int)*c<<endl;
+		}
+
     OBJS_DEBUG_4(cout << *mit << ":" << endl;);
     if (modes.count(*mit) > 0) //We have models already for this mode
     {
       OBJS_DEBUG_4(cout << "Have models for this mode" << endl;);
-      modes[*mit].learn_a_template(*Iit, Mask, session_ID, object_ID, framenum, learn_thresh, Score);
+      modes[*mit].learn_a_template(*Iit, Mask, session_ID, object_ID, framenum, learn_thresh, Score, clean);
     }
     else //We have no models for this mode yet. Better insert one
     {
@@ -438,12 +449,12 @@ mmod_objects::learn_a_template(vector<Mat> &Ifeat, const vector<string> &mode_na
     	  cout << "modes[*mit].mode = " << modes[*mit].mode << endl;
           cout << "  ... learn a template with the mode. learn_thresh: " << learn_thresh << endl;
       );
-      modes[*mit].learn_a_template(*Iit, Mask, session_ID, object_ID, framenum, learn_thresh);
+      modes[*mit].learn_a_template(*Iit, Mask, session_ID, object_ID, framenum, learn_thresh, Score, clean);
     }
     num_models += (int) (modes[*mit].objs[object_ID].features.size());
     OBJS_DEBUG_4(cout << "num_models = " << num_models << endl;);
   }
-  OBJS_DEBUG_2(cout << "# of templates for this object = "<<endl;);
+  OBJS_DEBUG_2(cout << "# of templates for this object = "<< num_models << endl;);
   return num_models;
 }
 
@@ -451,7 +462,8 @@ mmod_objects::learn_a_template(vector<Mat> &Ifeat, const vector<string> &mode_na
 // FILTERS
 ////////////////////////////////////////////////////////////////////////////////
 /**
- * \brief For a given object, if the view index is not updated, update it so that framenum will return it's learned index
+ * \brief For a given object, if the view index is not updated, update it so that
+ * \brief framenum will return it's learned index
  * @param objname  Name of object for which we want an updated ViewIndex
  * @return number of total views for the object. -1 => error, no such object
  */
@@ -475,7 +487,7 @@ int mmod_filters::update_viewindex(string objname) {
 		int num_indices = (int)(ViewIndex[objname].size());
 		if(num_views == num_indices)
 		{
-			OBJS_DEBUG_2(coutb << "Have already indexed this object views file with " << num_views << " views."<< endl;);
+			OBJS_DEBUG_2(cout << "Have already indexed this object views file with " << num_views << " views."<< endl;);
 			return num_views;
 		}
 		//We have a stale ViewIndex for this object, erase it
@@ -570,6 +582,7 @@ int mmod_filters::learn_a_template( Mat &Ifeatures,  Mat &Mask, string objname, 
 		return -1; //We require a mask
 	//We're good. Fill up the features class:
 	mmod_features f;
+	cout << "In mmod_filters::Learn a template" << endl;
 	int index = util.learn_a_template(Ifeatures, temp, framenum, f, clean);
 	if(ObjViews.count(objname)>0) //We already have this object, add to it
 	{
