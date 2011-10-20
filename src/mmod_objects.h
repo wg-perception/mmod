@@ -150,11 +150,10 @@ public:
 	 *                          NOTE: templates are not blurred, so your threshold will *have* to be a good deal lower than
 	 *                                you have it set for learn mode.  Maybe something like 0.3 lower.
 	 * @param Score				If set, fill with patch match score
-	 * @param clean		  		If true, do a 3x3 max filter to the features. Default is false
 	 * @return					Returns total number of templates for this object
 	 */
 	int learn_a_template(std::vector<cv::Mat> &Ifeat, const std::vector<std::string> &mode_names, cv::Mat &Mask,
-			std::string &session_ID, std::string &object_ID, int framenum, float learn_thresh, float *Score = 0, bool clean = false);
+			std::string &session_ID, std::string &object_ID, int framenum, float learn_thresh, float *Score = 0);
 
 };
 
@@ -232,11 +231,22 @@ public:
 	 * @param Mask			8UC3 or 8UC1 silhoette of the object
 	 * @param objname		Name of this object class
 	 * @param framenum		Framenum (correlated to view)
-	 * @param clean			If true, do a 3x3 max filter to the features. Default is false
 	 * @return				Number of views learned for this object. -1 => error
 	 */
-	int learn_a_template( cv::Mat &Ifeatures,  cv::Mat &Mask, std::string objname, int framenum, bool clean = false);
+	int learn_a_template( cv::Mat &Ifeatures,  cv::Mat &Mask, std::string objname, int framenum);
 
+	/**
+	 * \brief  After you've run Objs.match_all_objects(), You can use this to further filter recognitions according to the
+	 * \brief  learned filter model here.
+	 *
+	 * @param filt_features		This is the 8UC1 binarized feature image corresponding to this filter's modality
+	 * @param Objs				The learned object model which has just performed recognition using Objs.match_all_objects()
+	 *                          Objs's recognitions stored in rv, scores, ids, framed_nums, feature_indices will be altered
+	 *                          by this function's filtering.
+	 * @param thresh			The matching threshold for the filter
+	 * @return					Number of remaining matches
+	 */
+	int filter_object_recognitions(const cv::Mat &filt_features, mmod_objects &Objs, float thresh);
 };
 
 #endif /* MMOD_OBJECTS_H_ */

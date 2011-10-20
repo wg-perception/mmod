@@ -13,6 +13,8 @@
 #include <vector>
 #include "mmod_features.h"
 
+//DEFINES
+#define ORAMT 7   //Amount of ORing to do in each linemod feature image
 //VERBOSE
 // 1 Routine list, 2 values out, 3 internal values outside of loops, 4 intenral values in loops
 #define GENL_VERBOSE 0
@@ -210,10 +212,9 @@ public:
 	 * @param Mask		  Mask 8U_C1 of where the object is
 	 * @param framenum	  frame number of this view
 	 * @param features	  this will hold our learned template
-	 * @param clean		  If true, do a 3x3 max filter to the features. Default is false
 	 * @return index of template learned in features variable.
 	 */
-	int learn_a_template(cv::Mat &Ifeatures,  cv::Mat &Mask, int framenum, mmod_features &features, bool clean = false );
+	int learn_a_template(cv::Mat &Ifeatures,  cv::Mat &Mask, int framenum, mmod_features &features );
 
 	/**
 	 * \brief Score the current scene's recognition results assuming only one type of trained object in the scene

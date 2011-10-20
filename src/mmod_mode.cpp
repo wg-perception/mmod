@@ -65,15 +65,14 @@ mmod_mode::mmod_mode(const string &mode_name)
 	 * @param framenum			Frame number of this object, so that we can reconstruct pose from the database
 	 * @param learn_thresh		If no features from f match above this, learn a new template. Set to zero to learn all templates
 	 * @param Score				If set, fill with patch match score
-	 * @param clean		  		If true, do a 3x3 max filter to the features. Default is false
 	 * @return					Returns index of newly learned template, or -1 if a template already covered
 	 */
 	int mmod_mode::learn_a_template(Mat &Ifeat, Mat &Mask, string &session_ID, string &object_ID,
-	                                int framenum, float learn_thresh, float *Score, bool clean)
+	                                int framenum, float learn_thresh, float *Score)
 	{
 	  MODE_DEBUG_1(
 	      cout << "In mmod_mode::learn_a_template, sessionID:" << session_ID << " objID:"<<object_ID<<
-	      " frame#:"<<framenum<<" learn_thresh:"<<learn_thresh<< " clean = " << clean<<endl;
+	      " frame#:"<<framenum<<" learn_thresh:"<<learn_thresh<<endl;
 	  );
 //	  cout << "  pre util.learn" <<endl;
 //		Mat_<uchar>::iterator c = Ifeat.begin<uchar>();
@@ -84,7 +83,7 @@ mmod_mode::mmod_mode(const string &mode_name)
 //		}
 
 	  mmod_features ftemp(session_ID, object_ID);  //We'll learn a provisional feature here
-	  int index = util.learn_a_template(Ifeat, Mask, framenum, ftemp, clean);
+	  int index = util.learn_a_template(Ifeat, Mask, framenum, ftemp);
 
 	  MODE_DEBUG_2(
 	      cout << "index = " << index << ", learned util.learn_a_template" << endl;
@@ -122,13 +121,18 @@ mmod_mode::mmod_mode(const string &mode_name)
 	    );
 	    float score = -1.0;
 	    if(learn_thresh > 0.00001) //This allows us to learn all templates without searching for existing matches by setting learn_thresh = 0
+	    {
+			mmod_general g;
+			g.SumAroundEachPixel8UC1(patch,patch,ORAMT,0); //Spread features by ORing
 	    	score = util.match_a_patch_bruteforce(patch, pp, objs[object_ID], match_index);
+//	    	patch = Scalar::all(0);
+	    }
 	    if(Score) *Score = score; //Let user see the patch match score
 	    MODE_DEBUG_2(
-    	    cout << "frame#"<<framenum<<" mmod_mode::learn_a_template("<<object_ID<<", "<<match_index<<"), match a patch score " << score << " clean = " << clean<<endl;
+    	    cout << "frame#"<<framenum<<" mmod_mode::learn_a_template("<<object_ID<<", "<<match_index<<"), match a patch score " << score <<<<endl;
 	        cout << object_ID << " at match_index = " << match_index << ", score from bfm = " << score << " learn_thresh = " << learn_thresh << endl;
 	    );
-	    if(score <= learn_thresh)
+	    if(score <= learn_thresh) //We don't already have a good score for this object
 	    {
 	      MODE_DEBUG_2(
 	          cout << "Return insert: score(" << score <<") <= learn_thresh(" << learn_thresh << ")" <<  endl;
@@ -148,7 +152,7 @@ mmod_mode::mmod_mode(const string &mode_name)
 	    return 0;//Template is in zero'th position in objs[object_ID].features
 	  }
 	  MODE_DEBUG_1(cout << "return -1"<<endl;);
-	  return -1;
+	  return -1; //Good enough template already exists
 	}
 
 

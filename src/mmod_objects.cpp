@@ -78,7 +78,7 @@ mmod_objects::draw_matches(Mat &I, Point o)
    int cx = R.x + R.width / 2, cy = R.y + R.height / 2;
    OBJS_DEBUG_4(cout << "cx("<<cx<<","<<cy<<")"<<endl;);
     rectangle(I, R, color); //Draw rectangle
-    ss << *si;
+    ss << *si; //Number to string
     ss >> stringscore;
     //			cout << "string score = " << stringscore << ", *si = " << *si << endl;
     putText(I, *ii, Point(R.x, R.y - 2), fontFace, fontScaleO, color, thickness, 8); //Object ID, and then score
@@ -403,16 +403,14 @@ mmod_objects::match_all_objects(const vector<Mat> &I, const vector<string> &mode
  * @param framenum			Frame number of this object, so that we can reconstruct pose from the database
  * @param learn_thresh		If no features from f match above this, learn a new template.
  * @param Score				If set, fill with patch match score
- * @param clean		  		If true, do a 3x3 max filter to the features. Default is false
  * @return					Returns total number of templates for this object
  */
-int
-mmod_objects::learn_a_template(vector<Mat> &Ifeat, const vector<string> &mode_names, Mat &Mask, string &session_ID,
-                               string &object_ID, int framenum, float learn_thresh, float *Score, bool clean)
+int mmod_objects::learn_a_template(vector<Mat> &Ifeat, const vector<string> &mode_names, Mat &Mask, string &session_ID,
+                               string &object_ID, int framenum, float learn_thresh, float *Score)
 {
   OBJS_DEBUG_1(
       cout << "mmod_objects::learn_a_template(sesID:"<<session_ID<<", objID:"<<object_ID<<" frame#:"<<framenum
-           <<" learn_thresh:"<<learn_thresh<<" clean = "<<clean<<endl;
+           <<" learn_thresh:"<<learn_thresh<<endl;
 	  vector<string>::const_iterator vsi;
 	  for(vsi=mode_names.begin();vsi != mode_names.end();++vsi)
 	  {
@@ -420,7 +418,6 @@ mmod_objects::learn_a_template(vector<Mat> &Ifeat, const vector<string> &mode_na
 	  }
 	  cout << "Ifeat[0].rows,cols=" << Ifeat[0].rows << ","<<Ifeat[0].cols<<" learn_thresh:"<<learn_thresh<<endl;
   );
-  cout << "In mmod_obj::learn a template" << endl;
   vector<Mat>::iterator Iit;
   vector<string>::const_iterator mit;
   int num_models = 0;
@@ -438,7 +435,7 @@ mmod_objects::learn_a_template(vector<Mat> &Ifeat, const vector<string> &mode_na
     if (modes.count(*mit) > 0) //We have models already for this mode
     {
       OBJS_DEBUG_4(cout << "Have models for this mode" << endl;);
-      modes[*mit].learn_a_template(*Iit, Mask, session_ID, object_ID, framenum, learn_thresh, Score, clean);
+      modes[*mit].learn_a_template(*Iit, Mask, session_ID, object_ID, framenum, learn_thresh, Score);
     }
     else //We have no models for this mode yet. Better insert one
     {
@@ -449,7 +446,7 @@ mmod_objects::learn_a_template(vector<Mat> &Ifeat, const vector<string> &mode_na
     	  cout << "modes[*mit].mode = " << modes[*mit].mode << endl;
           cout << "  ... learn a template with the mode. learn_thresh: " << learn_thresh << endl;
       );
-      modes[*mit].learn_a_template(*Iit, Mask, session_ID, object_ID, framenum, learn_thresh, Score, clean);
+      modes[*mit].learn_a_template(*Iit, Mask, session_ID, object_ID, framenum, learn_thresh, Score);
     }
     num_models += (int) (modes[*mit].objs[object_ID].features.size());
     OBJS_DEBUG_4(cout << "num_models = " << num_models << endl;);
@@ -557,10 +554,9 @@ float mmod_filters::match_here(const cv::Mat &I, std::string objname, cv::Rect &
  * @param Mask			8UC3 or 8UC1 silhoette of the object
  * @param objname		Name of this object class
  * @param framenum		Framenum (correlated to view)
- * @param clean			If true, do a 3x3 max filter to the features. Default is false
  * @return				Number of views learned for this object. -1 => error
  */
-int mmod_filters::learn_a_template( Mat &Ifeatures,  Mat &Mask, string objname, int framenum, bool clean)
+int mmod_filters::learn_a_template( Mat &Ifeatures,  Mat &Mask, string objname, int framenum)
 {
 	cv::Mat temp;
 	if (!Mask.empty()) //We have a mask, make sure it's 8UC1
@@ -583,7 +579,7 @@ int mmod_filters::learn_a_template( Mat &Ifeatures,  Mat &Mask, string objname, 
 	//We're good. Fill up the features class:
 	mmod_features f;
 	cout << "In mmod_filters::Learn a template" << endl;
-	int index = util.learn_a_template(Ifeatures, temp, framenum, f, clean);
+	int index = util.learn_a_template(Ifeatures, temp, framenum, f);
 	if(ObjViews.count(objname)>0) //We already have this object, add to it
 	{
 		ObjViews[objname].insert(f, index);
@@ -594,4 +590,50 @@ int mmod_filters::learn_a_template( Mat &Ifeatures,  Mat &Mask, string objname, 
 	}
 	return (int)(ObjViews[objname].size());
 }
-float match_one_feature(const cv::Mat &I, const cv::Rect &R, mmod_features &f, int index);
+//float match_one_feature(const cv::Mat &I, const cv::Rect &R, mmod_features &f, int index);
+
+/**
+ * \brief  After you've run Objs.match_all_objects(), You can use this to further filter recognitions according to the
+ * \brief  learned filter model here.
+ *
+ * @param filt_features		This is the 8UC1 binarized feature image corresponding to this filter's modality
+ * @param Objs				The learned object model which has just performed recognition using Objs.match_all_objects()
+ *                          Objs's recognitions stored in rv, scores, ids, framed_nums, feature_indices will be altered
+ *                          by this function's filtering.
+ * @param thresh			The matching threshold for the filter
+ * @return					Number of remaining matches
+ */
+int mmod_filters::filter_object_recognitions(const Mat &filt_features, mmod_objects &Objs, float thresh)
+{
+	int reclen = (int)Objs.rv.size();
+	vector<string>::iterator nit = Objs.ids.begin();
+	vector<Rect>::iterator rit = Objs.rv.begin();
+	vector<float>::iterator scit = Objs.scores.begin();
+	vector<int>::iterator fit = Objs.frame_nums.begin();
+	vector<vector<int> >::iterator featit = Objs.feature_indices.begin();
+	vector<float> fscores;
+	for(int ij = 0; ij< reclen; ++ij)
+	{
+		float fscore = match_here(filt_features, Objs.ids[ij], Objs.rv[ij], Objs.frame_nums[ij]);
+		fscores.push_back(fscore);
+		if(fscore < thresh) //Too low
+		{
+			Objs.rv.erase(rit + ij);
+			Objs.scores.erase(scit + ij);
+			Objs.ids.erase(nit + ij);
+			Objs.frame_nums.erase(fit + ij);
+			Objs.feature_indices.erase(featit + ij);
+			ij -= 1;
+			reclen -= 1;
+		}
+	}
+	if(!reclen)
+	{
+		cout << "All filter scores were squashed, they were:" << endl;
+		vector<float>::iterator fsit = fscores.begin();
+		for(;fsit != fscores.end();++fsit)
+			cout << *fsit << ", ";
+		cout << endl;
+	}
+	return reclen;
+}

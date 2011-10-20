@@ -951,13 +951,12 @@ mmod_general::mmod_general()
 	 * @param Mask		  Mask 8U_C1 of where the object is
 	 * @param framenum	  frame number of this view
 	 * @param features	  this will hold our learned template
-	 * @param clean		  If true, do a 3x3 max filter to the features. Default is false
 	 * @return index of template learned in features variable.
 	 */
-	int mmod_general::learn_a_template(Mat &Ifeatures,  Mat &Mask, int framenum, mmod_features &features, bool clean)
+	int mmod_general::learn_a_template(Mat &Ifeatures,  Mat &Mask, int framenum, mmod_features &features)
 	{
 	  GENL_DEBUG_1(cout << "In mmod_general::learn_a_template. framenum:"<<framenum<<" At start: features.features.size() = " << features.features.size() << endl;);
-		if (clean) SumAroundEachPixel8UC1(Ifeatures, Ifeatures, 3, 1); //This sets the middle pixel (if it's not 0) to the max of its 3x3 surround
+//		if (clean) SumAroundEachPixel8UC1(Ifeatures, Ifeatures, 3, 1); //This sets the middle pixel (if it's not 0) to the max of its 3x3 surround
 	    //FIND MAX CONTOUR
 	    vector<vector<Point> > contours;
 	    vector<Vec4i> hierarchy;
@@ -1070,7 +1069,7 @@ mmod_general::mmod_general()
 	  true_positives = 0;
 	  wrong_object = 0;
 	  if(Mask.empty()) {cout << "ERROR: Mask empty"<<endl; return -1;}
-	    //FIND MAX CONTOUR
+	    //FIND BOUNDING RECTANGLE
 	    vector<vector<Point> > contours;
 	    vector<Vec4i> hierarchy;
 	    findContours( Mask, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE );
@@ -1081,8 +1080,8 @@ mmod_general::mmod_general()
 	    	int cs = contours[i].size();
 	    	if(cs > maxc){ maxc = cs; maxpos = i;}
 	    }
-	    //FIND CENTER
 	    R = boundingRect(contours[maxpos]);
+	    //SCORE IT
 	    vector<Rect>::const_iterator ri = rv.begin(), re = rv.end();
 	    vector<string>::const_iterator si = ids.begin();
 	    for(;ri != re; ++ri,++si)
@@ -1092,7 +1091,7 @@ mmod_general::mmod_general()
 	    	int Rarea = R.height * R.width;
 	    	if(area > Rarea) area = Rarea;
 	    	float overlap = (float)(Rintersect.width * Rintersect.height)/(float)(area + 0.000001);
-	    	if(overlap > 0.7)
+	    	if(overlap > 0.6)
 	    	{
 	    		if(currentObj == *si)
 	    			true_positives += 1;

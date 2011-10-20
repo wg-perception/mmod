@@ -1,66 +1,147 @@
-This is Gary's multi-modal perception/version of linemod.
+This is Gary Bradski's 10/19/11 multi-modal perception/version of linemod.  This is just a basic guide to use, it won't compile.
+Below, I use the a color image to compute gradient linemod features and the same color image to compute the color features for filtering.
 
+//MAIN FUNCTION (EXAMPLE WITH LOTS OF DEBUG IN IT)
+My Main file is in MyMMod.cpp
+
+//CLASSES ARE:
+mmod_objects -- holds recognition results, it contains a map of modalities (color, depth, gradients ...) in
+mmod_mode	 -- holds a features for a modality, it contains a map of features and offsets which are in
+mmod_features -- holds a list of object views (vector<vector<uchar> >) of 8 bit binarized features and their offsets ... these are the model templates
+
+mmod_general  -- Almost all the learning and matching computation and utility functions are here
+mmod_color    -- Shouldn't be named "color", should be named mmod_calc_feature -- these classes, one for each feature take a modality as input 
+                 (depth image, color image) and creates a feature image of 8 bit values. These take a mask (training) or not (test), see below.
+
+
+//////////////////A WALK THROUGH OF HOW TO CALL THESE FUNCTIONS//////////////////
 //INCLUDES
-#include "mmod_objects.h"  //For train and test
-#include "mmod_color.h"    //For depth and color processing (yes, I should change the name)
+#include <opencv2/opencv.hpp>
+#include <iostream>
+#include <stdio.h>
+#include <valgrind/callgrind.h>
 
-//Instantiate stuff
-mmod_objects Objs; //Object train and test.
-colorwta  calcColor;	//Feature processing
-depthwta  calcDepth;	//Feature processing
+#include "mmod_general.h"
+#include "mmod_objects.h"
+#include "mmod_mode.h"
+#include "mmod_features.h"
+#include "mmod_color.h"
 
-Mat colorfeat, depthfeat;  //To hold feature outputs. These will be CV_8UC1 images
+//For serialization
+#include <fstream>
+#include <boost/archive/text_oarchive.hpp>
+#include <boost/archive/text_iarchive.hpp>
 
-vector<Mat> FeatModes; //List of images
-vector<string> modesCD; //Names of modes (color and depth)
-string SessionID,ObjectName;  //Fill these in.
-int framenum;
-float learn_thresh = 0.8; //Just a guess
-float match_threshold = 0.85; //Total guess
-float frac_overlap = 0.6; //the fraction of overlap between 2 above threshold feature's bounding box rectangles that constitutes "overlap"
+using namespace cv;
+using namespace std;
 
-//SET UP:
-//Set up our modes (right now we have color and depth. Lets say we use that order: Color and Depth)
-	modesCD.push_back("Color");
-	modesCD.push_back("Depth");
-	framenum = ...
-	SessionID = "Session1";
-	ObjectName = "Cake";
+//INSTANTIATE STUFF:
+	mmod_objects Objs; 				//Object train and test.
+	mmod_general g;    				//General utilities
+	mmod_filters filt("Color"); 	//For post recognition filter object check, I'm using color, you can use any (one) mode
+	colorhls calcHLS;				//Color feature processing
+	gradients calcGrad;    			//Gradient feature processing
+//	depthgrad  calcDepth;			//Depth feature processing
+	Mat colorfeat, depthfeat, gradfeat;  //To hold feature outputs. These will be CV_8UC1 images
+	Mat ColorRaw0,Mask0,ColorRaw,Mask,noMask; //Will hold raw  images and masks
+	Mat Ivis,Gvis;					//feature images, CV_8UC1
+	vector<Mat> ColorPyr,MaskPyr;	//Image pyramid 
+	vector<Mat> FeatModes; 			//List of images
+	vector<string> modesCD; 		//Names of modes (color and depth)
+	string SessionID, ObjectName;   //Fill these in.
+	int framenum = 0;
+	float Score;
 
-//GET OUR IMAGES IN:
-... Mat::ColorRaw ... //BGR image of type CV_8UC3
-... Mat::DepthRaw ... //Depth image of type CV_16UC1
-... Mat::Mask ...     //Object mask of type CV_8UC1 or CV_8UC3
+	//SET UP:
+	//Set up our modes (right now we have color gradients and depth. Below, I just use gradients
+#define PYRLEVELS 2 //How many levels of pyramid reduction
+#define SKIPAMT 8	//SKIP Amount (skipX, skipY)
+//	modesCD.push_back("Color"); 	
+	modesCD.push_back("Grad");
+	//		modesCD.push_back("Depth");
+	float learn_thresh = 0.97; //Just a guess
+	float match_threshold = 0.97; //Total guess
+	float frac_overlap = 0.5; //the fraction of overlap between 2 above threshold feature's bounding box rectangles that constitutes "overlap"
+	float cthresh = 0.91; //Color thresh
+
+. . .
+
+//GET OUR IMAGES IN, AND REDUCE IF YOU WANT A SPEED UP:
+... Mat::ColorRaw0 ... //BGR image of type CV_8UC3
+... Mat::DepthRaw0 ... //Depth image of type CV_16UC1
+... Mat::Mask0 ...     //Object mask of type CV_8UC1 or CV_8UC3
+
+	buildPyramid(ColorRaw0, ColorPyr, PYRLEVELS); //This is optional, you can just use the raw images. I had 1Kx1K images, so did this for speed.
+	buildPyramid(Mask0,MaskPyr,PYRLEVELS);
+	ColorRaw = ColorPyr[PYRLEVELS];
+	Mask = MaskPyr[PYRLEVELS];
+
 
 //PROCESS TO GET FEATURES
-calcColor.computeColorWTA(ColorRaw, colorfeat, Mask);
-calcDepth.computeDepthWTA(DepthRaw, depthfeat, Mask);
-FeatModes.clear();
-FeatModes.push_back(colorfeat);
-FeatModes.push_back(depthfeat);
+	calcHLS.computeColorHLS(ColorRaw,colorfeat,Mask,"train");
+	calcGrad.computeGradients(ColorRaw,gradfeat,Mask,"train");
+//		calcDepth.computeDepthGradients(DepthRaw,depthfeat,Mask,"train");
+	FeatModes.clear(); //Stack the features ... here I only use gradients
+	FeatModes.push_back(gradfeat);
+//		FeatModes.push_back(colorfeat);
+//		FeatModes.push_back(depthfeat);
+
 
 //LEARN A TEMPLATE (for now, it will slow down with each view learned).
+	int num_templ = Objs.learn_a_template(FeatModes,modesCD, Mask,
+			SessionID, ObjectName, framenum, learn_thresh, &Score);
 
-	string sT1("ST1"), oT("T"), oX("X");
-	int num_templ = Objs.learn_a_template(FeatModes,modesCD, Mask, 
-	                                      SessionID, ObjectName, framenum, learn_thresh);
+//LEARN A FILTER TO CONFIRM RECOGNIZED OBJECTS IN TEST MODE
+	int num_fs = filt.learn_a_template(colorfeat,Mask,"Tea",framenum);
 
 . . . 
 
-//TEST (note that you can also match_all_objects_at_a_point(...):
-... Mat::ColorRaw ... //BGR image of type CV_8UC3
-... Mat::DepthRaw ... //Depth image of type CV_16UC1
-... Mat::AttendMask ...     //Attention mask of type CV_8UC1.  Can be empty for whole image
-calcColor.computeColorWTA(ColorRaw, colorfeat, Mask);
-calcDepth.computeDepthWTA(DepthRaw, depthfeat, Mask);
-FeatModes.clear();
-FeatModes.push_back(colorfeat);
-FeatModes.push_back(depthfeat);
+//EXAMPLE OF I/O -- I USE A FILTER IN THIS EXAMPLE, YOU CAN USE OBJECTS IN A SIMILAR WAY
+	{ //Serialize out 
+		cout << "Writing models filt.txt out" << endl;
+		std::ofstream ofs("filt.txt");
+		boost::archive::text_oarchive oa(ofs);
+		oa << filt;
+	}
+    // ----
+	mmod_filters filt2("foo");
+    { //Serialize in 
+    	cout << "Reading models filt.txt in" << endl;
+    	std::ifstream ifs("filt.txt");
+    	boost::archive::text_iarchive ia(ifs);
+        // read class state from archive
+    	ia >> filt2;
+    }
 
-int skipX = 2, skipY = 2;  //These control sparse testing of the feature images
+. . . 
 
-int num_matches = Objs.match_all_objects(FeatModes,modesCD,AttendMask,
-                        match_threshold,frac_overlap,skipX,skipY);                                     
+//TEST MODE
+	int skipX = SKIPAMT, skipY = SKIPAMT;  //These control sparse testing of the feature images, here SKIPAMT 8
+. . . ColorRaw0 is read in . . .
+	buildPyramid(ColorRaw0, ColorPyr, PYRLEVELS); //PYRAMID DOWN IF YOU WANT (FOR SPEED)
+	ColorRaw = ColorPyr[PYRLEVELS];					//OR, could just use the full scale image
+	//Calculate features
+	calcHLS.computeColorHLS(ColorRaw,colorfeat,noMask,"test");
+	calcGrad.computeGradients(ColorRaw,gradfeat,noMask,"test");
+//		calcDepth.computeDepthGradients(DepthRaw,depthfeat,noMask,"test");
+		FeatModes.clear();
+		FeatModes.push_back(gradfeat);  //I'm just using gradients here, you can push back as many modalities as you like
+//		FeatModes.push_back(colorfeat);	//Color will instead be used for filtering
+		//		FeatModes.push_back(depthfeat);
 
-//TO DISPLAY MATCHES (NON-MAX SUPPRESSED)
-Objs.draw_matches(ColorRaw);	                                     
+   //RECOGNIZE
+   	int num_matches = Objs.match_all_objects(FeatModes,modesCD,noMask,
+			                                 match_threshold,frac_overlap,skipX,skipY,&numrawmatches);
+   . . . Optionally, check the recognitions with a filter (here my trained color filter)
+	filt.filter_object_recognitions(colorfeat,Objs,cthresh);
+
+//USE THE RESULTS
+	Objs.rv  		contains a vector of rectanglular bounding boxes of recognized objects
+	Objs.ids 		contains the corrsponsing list of their names
+	Objs.scores		contains their matching scores
+	Objs.frame_nums	contains the frame number of the model, so that we can relate it to the view learned.                          
+
+//UTILITIES
+g.visualize_binary_image(gradfeat,Gvis); //DISPLAY COLOR CODED BINARY IMAGE
+Objs.draw_matches(ColorRaw);	  //DISPLAYS RECOGNITION RESULTS ONTO THE RAW IMAGE
+                             

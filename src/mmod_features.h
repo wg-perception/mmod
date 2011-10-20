@@ -81,10 +81,10 @@ public:
 	std::vector<cv::Rect>  bbox;						//bounding box of the features
 	std::vector<std::vector<int> > quadUL,quadUR,quadLL,quadLR;//List of features in each quadrant
 	cv::Rect max_bounds;								//This rectangle contains the maximum width and and height spanned by all the bbox rectangles
-	//---temp---//
+	//---temp--- These were created to optimize feature matching//
 	int wstep;											//Flag to convert offsets from cv::Point to uchar*
 														//   when set, it is set to the row size of images
-	std::vector<std::vector<int> > poff;							//Pointer offsets computed from cv::Point offests above.
+	std::vector<std::vector<int> > poff;				//Pointer offsets computed from cv::Point offests above.
 
 	mmod_features();
 
