@@ -7,6 +7,7 @@ from ecto_object_recognition import capture
 from object_recognition import models, dbtools
 import mmod
 from ecto_object_recognition.object_recognition_db import ObjectDbParameters
+from object_recognition.common.io.source import Source
 
 # FROM AN OLDER FILE ...
 import argparse
@@ -37,65 +38,36 @@ def parse_args():
         sys.exit(1)
     return args
 
-def kinect_highres(device_n=0):
-    from ecto_openni import Capture, ResolutionMode, Device
-    return Capture('ni device', rgb_resolution=ResolutionMode.SXGA_RES,
-                   depth_resolution=ResolutionMode.VGA_RES,
-                   rgb_fps=15, depth_fps=30,
-                   device_number=device_n,
-                   registration=True,
-                   synchronize=False,
-                   device=Device.KINECT
-                   )
-def hookup_kinect(plasm):
-    '''
-    returns a kinect based source of data.
-    '''
-    kinect_raw = kinect_highres()
-    kinect_cv = highgui.NiConverter('Kinect CV')
-    rescale_depth = capture.RescaledRegisteredDepth() #this is for SXGA mode scale handling.
-    #connect up the kinect as input
-    plasm.connect(
-        kinect_raw[:] >> kinect_cv[:],
-        kinect_cv['image'] >> rescale_depth['image'],
-        kinect_cv['depth'] >> rescale_depth['depth'],
-    )
-
-    return (kinect_cv['image'], rescale_depth['depth'])
-
-def hookup_db(plasm, db_root):
-    couch = couchdb.Server(db_root)
-    dbs = dbtools.init_object_databases(couch)
-    models.sync_models(dbs)
-    sessions = dbs['sessions']
-    observations = dbs['observations']
-    obs_ids = models.find_all_observation_ids(sessions, observations)
-    db_reader = capture.ObservationReader('db_reader', db_url=db_root, collection='observations')
-    observation_dealer = ecto.Dealer(typer=db_reader.inputs.at('observation'), iterable=obs_ids)
-    db_reader = capture.ObservationReader('db_reader', db_url=db_root, collection='observations')
-    rescale_depth = capture.RescaledRegisteredDepth() #this is for SXGA mode scale handling.
-    #connect some initial filters
-    plasm.connect(
-        observation_dealer[:] >> db_reader['observation'],
-        db_reader['image'] >> rescale_depth['image'],
-        db_reader['depth'] >> rescale_depth['depth'],
-    )
-    return (db_reader['image'], db_reader['depth'])
-
 def test_mmod(args):
     '''
     Run mmod testing
     '''
     plasm = ecto.Plasm()
+    parser = ArgumentParser()
 
-    image , depth = None, None
-    if args.use_kinect: 
-        # a source of data, image, and depth, same size.  
-        image, depth = hookup_kinect(plasm)
-    elif args.use_db:
-        image, depth = hookup_db(plasm, args.db_root)
-    else:
-        raise RuntimeError("No source given --use_kinect or --use_db")
+    # add arguments for the source and sink
+    Sink.add_arguments(parser)
+
+    params, args, pipeline_params, do_display, db_params, db = read_arguments(parser,argv)
+
+    model_ids = []
+    object_ids = []
+    for object_id in params['object_ids']:
+        for model_id in models.find_model_for_object(db, object_id, 'TOD'):
+            model_ids.append(str(model_id))
+            object_ids.append(object_id)
+    params['object_ids'] = object_ids
+
+    # TODO handle this properly...
+    ecto_ros.init(argv, "tod_detection", False)#not anonymous.
+
+    source = Source.parse_arguments(params['source'])
+
+
+    sink = Sink.parse_arguments(args, db, db_params, params['object_ids'])
+
+    
+    
     
     #hook up the tester
     loader = mmod.TemplateLoader(collection_models=db_params.collection,
@@ -105,10 +77,10 @@ def test_mmod(args):
 
     mmod_tester = MModTester(filename=args.training,thresh_match=0.95,skip_x=8,skip_y=8)
     
-    plasm.connect(
-        image >> mmod_tester['image'],
-        depth >> mmod_tester['depth'],
-    )
+    # Connect the detector to the source
+    for key in source.outputs.iterkeys():
+        if key in detector.inputs.keys():
+            plasm.connect(source[key] >> detector[key])
     plasm.connect(loader['templates', 'objects', 'id_correspondences', 'do_update'] >>
                         detector['templates', 'objects', 'id_correspondences', 'do_update'])
 
