@@ -98,12 +98,20 @@ def test_mmod(args):
         raise RuntimeError("No source given --use_kinect or --use_db")
     
     #hook up the tester
+    loader = mmod.TemplateLoader(collection_models=db_params.collection,
+                                           db_params=db_params,
+                                           object_ids=object_ids, model_ids=model_ids,
+                                           feature_descriptor_params=json_helper.dict_to_cpp_json_str(pipeline_param['feature_descriptor']))
+
     mmod_tester = MModTester(filename=args.training,thresh_match=0.95,skip_x=8,skip_y=8)
     
     plasm.connect(
         image >> mmod_tester['image'],
         depth >> mmod_tester['depth'],
     )
+    plasm.connect(loader['templates', 'objects', 'id_correspondences', 'do_update'] >>
+                        detector['templates', 'objects', 'id_correspondences', 'do_update'])
+
     #visualize raw data
     fps = highgui.FPSDrawer()
     plasm.connect(

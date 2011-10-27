@@ -12,6 +12,7 @@ include_directories(
     ${Boost_INCLUDE_DIRS}
     )
 add_subdirectory(src)
+add_subdirectory(cells)
 
 #message(STATUS "C++ flags: ${CMAKE_CXX_FLAGS}")
  

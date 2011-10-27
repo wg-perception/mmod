@@ -1,6 +1,5 @@
 #include <ecto/ecto.hpp>
 #include <opencv2/core/core.hpp>
-#include <boost/archive/text_iarchive.hpp>
 #include <fstream>
 
 #include "object_recognition/common/types.h"
@@ -18,8 +17,6 @@ namespace mmod
     static void
     declare_params(tendrils& p)
     {
-      p.declare<std::string> ("filename", "Output file name to save training to.");
-
       p.declare<float> ("thresh_match", "The threshold for declaring an object detected", 0.95);
       p.declare<float> (
                         "frac_overlap",
@@ -49,7 +46,6 @@ namespace mmod
     {
       std::string filename;
       //parameters
-      p["filename"] >> filename; //?? THIS WORKS FOR FILES ON DISK, WHAT ABOUT DB?
       thresh_match_ = p["thresh_match"];
       frac_overlap_ = p["frac_overlap"];
       color_filter_thresh_ = p["color_filter_thresh"];
@@ -59,10 +55,8 @@ namespace mmod
       //      modesCD.push_back("Color");
       //      modesCD.push_back("Depth");
       //deserialize from file.
-      std::ifstream file(filename.c_str());
-      boost::archive::text_iarchive ia(file);
-      ia >> templates_; //?? HOW TO GET FILTERS IN?
-      ia >> filters_; //??THIS IS TOTALLY WRONG ... JUST FOR COMPILE
+      templates_ = i["templates"];
+      filters_ = i["filters"];
 
       // inputs
       image_ = i["image"];
