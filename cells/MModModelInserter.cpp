@@ -13,15 +13,13 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
+#include "object_recognition/common/types.h"
 #include "object_recognition/db/db.h"
 #include "object_recognition/db/opencv.h"
 #include "object_recognition/db/ModelInserter.hpp"
 
 #include "mmod_features.h"
 #include "mmod_objects.h"
-
-using object_recognition::db::CollectionName;
-using object_recognition::db::DocumentId;
 
 namespace mmod
 {
