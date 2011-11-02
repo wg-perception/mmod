@@ -15,6 +15,7 @@
 #include "object_recognition/common/types.h"
 #include "object_recognition/db/db.h"
 #include "object_recognition/db/opencv.h"
+#include "object_recognition/db/ModelInserter.hpp"
 
 #include "mmod_features.h"
 #include "mmod_objects.h"
@@ -26,7 +27,9 @@ namespace mmod
 {
   /** Class inserting the TOD models in the db
    */
-  struct ModelInserter
+  /** Class inserting the MMOD models in the DB
+   */
+  struct ModelInserter_
   {
     static void
     declare_params(ecto::tendrils& params)
@@ -55,12 +58,14 @@ namespace mmod
       collection_models_ = params.get < std::string > ("collection_models");
       params_ = params.get < std::string > ("model_json_params");
 
-      objects_ = inputs["objects"];
-      filters_ = inputs["filters"];
+    const std::string& model_type() const
+    {
+      static std::string s = "MMOD";
+      return s;
     }
 
     int
-    process(const ecto::tendrils& inputs, const ecto::tendrils& outputs)
+    process(const ecto::tendrils& inputs, const ecto::tendrils& outputs, object_recognition::db::Document& doc)
     {
       object_recognition::db::Document doc(db_, collection_models_);
 
@@ -106,7 +111,11 @@ namespace mmod
     ecto::spore<mmod_objects> objects_;
     ecto::spore<mmod_filters> filters_;
   };
+
+  //for type prettiness
+  struct ModelInserter: object_recognition::db::bases::ModelInserter<ModelInserter_>
+  {
+  };
 }
 
-ECTO_CELL(mmod, mmod::ModelInserter, "ModelInserter","???")
-;
+ECTO_CELL(mmod, mmod::ModelInserter, "ModelInserter", "???");
