@@ -1,49 +1,89 @@
-#include <ecto/ecto.hpp>
-#include <opencv2/core/core.hpp>
 #include <fstream>
 
+#include <boost/foreach.hpp>
+
+#include <ecto/ecto.hpp>
+#include <opencv2/core/core.hpp>
+
 #include "object_recognition/common/types.h"
+#include "object_recognition/db/db.h"
 
 #include "mmod_objects.h"  //For train and test (includes mmod_mode.h, mmod_features.h, mmod_general.h
 #include "mmod_color.h"    //For depth and color processing (yes, I should change the name)
 using namespace std;
 using namespace cv;
+using object_recognition::db::Documents;
+using object_recognition::db::ObjectId;
+using object_recognition::db::ModelId;
+
 namespace mmod
 {
   using ecto::tendrils;
   using ecto::spore;
   struct MModTester
   {
+    void
+    ModelDocumentsCallback(const Documents & db_documents)
+    {
+      templates_->reserve(db_documents.size());
+      filters_->reserve(db_documents.size());
+      object_ids_->reserve(db_documents.size());
+
+      // Re-load the data from the DB
+      std::cout << "Loading models. This may take some time..." << std::endl;
+      BOOST_FOREACH (const object_recognition::db::Document & document, db_documents)
+          {
+            ObjectId object_id = document.get_value<std::string>("object_id");
+            std::cout << "Loading model for object id: " << object_id << std::endl;
+            mmod_objects templates;
+            document.get_attachment<mmod_objects>("templates", templates);
+            templates_->push_back(templates);
+
+            // Store the id conversion
+            object_ids_->push_back(object_id);
+
+            // Store the 3d positions
+            mmod_filters filters;
+            document.get_attachment<mmod_filters>("filters", filters);
+            filters_->push_back(filters);
+          }
+    }
+
     static void
     declare_params(tendrils& p)
     {
-      p.declare<float> ("thresh_match", "The threshold for declaring an object detected", 0.95);
-      p.declare<float> (
-                        "frac_overlap",
-                        "the fraction of overlap between 2 above threshold feature's bounding box rectangles that constitutes 'overlap'",
-                        0.6);
-      p.declare<float> ("color_filter_thresh", "The color filter threshold to confirm a match", 0.91);
-      p.declare<int> ("skip_x", "Control sparse testing of the feature images", 8);
-      p.declare<int> ("skip_y", "Control sparse testing of the feature images", 8);
+      p.declare<float>("thresh_match", "The threshold for declaring an object detected", 0.95);
+      p.declare<float>(
+          "frac_overlap",
+          "the fraction of overlap between 2 above threshold feature's bounding box rectangles that constitutes 'overlap'",
+          0.6);
+      p.declare<float>("color_filter_thresh", "The color filter threshold to confirm a match", 0.91);
+      p.declare<int>("skip_x", "Control sparse testing of the feature images", 8);
+      p.declare<int>("skip_y", "Control sparse testing of the feature images", 8);
+
+      p.declare(&MModTester::model_documents_, "model_documents", "The DB documents for the models to load").required(
+          true);
     }
 
     static void
     declare_io(const tendrils& p, tendrils& i, tendrils& o)
     {
-      i.declare<std::vector<mmod_objects> > ("templates", "The templates");
-      i.declare<std::vector<mmod_filters> > ("filters", "The filters");
-      i.declare<std::vector<ObjectId> > ("ids", "The matching object ids");
-      i.declare<bool> ("do_update", "If true, that means new templates have been loaded");
+      i.declare<std::vector<mmod_objects> >("templates", "The templates");
+      i.declare<std::vector<mmod_filters> >("filters", "The filters");
+      i.declare<std::vector<ObjectId> >("ids", "The matching object ids");
 
-      i.declare<cv::Mat> ("image", "An image. BGR image of type CV_8UC3").required(true);
-      i.declare<cv::Mat> ("depth", "Depth image of type CV_16UC1").required(true);
+      i.declare<cv::Mat>("image", "An image. BGR image of type CV_8UC3").required(true);
+      i.declare<cv::Mat>("depth", "Depth image of type CV_16UC1").required(true);
       //      i.declare<cv::Mat> ("mask", "Object mask of type CV_8UC1 or CV_8UC3").required(false);
-      o.declare<cv::Mat> ("debug_image", "Debug image.");
+      o.declare<cv::Mat>("debug_image", "Debug image.");
     }
 
     void
     configure(const tendrils& p, const tendrils& i, const tendrils& o)
     {
+      model_documents_.set_callback(boost::bind(&MModTester::ModelDocumentsCallback, this, _1));
+      model_documents_.dirty(true);
+
       std::string filename;
       //parameters
       thresh_match_ = p["thresh_match"];
@@ -72,7 +112,7 @@ namespace mmod
     {
       //iputs spores are like smart pointers, dereference to get at under
       //lying data type.
-      cv::Mat image = *image_, depth = *depth_;// , mask = *mask_; //We don't need mask for rec
+      cv::Mat image = *image_, depth = *depth_; // , mask = *mask_; //We don't need mask for rec
 
       //run detections.
       //TEST (note that you can also match_all_objects_at_a_point(...):
@@ -137,11 +177,10 @@ namespace mmod
     ecto::spore<std::vector<mmod_filters> > filters_;
     /** The templates */
     ecto::spore<std::vector<mmod_objects> > templates_;
-    /** If True, load from the db */
-    ecto::spore<bool> do_update_;
     /** Matching between an OpenCV integer ID and the ids found in the JSON */
-    ecto::spore<std::vector<ObjectId> > ids_;
+    ecto::spore<std::vector<ObjectId> > object_ids_;
+    /** The DB documents for the models */
+    ecto::spore<Documents> model_documents_;
   };
 }
-ECTO_CELL(mmod, mmod::MModTester, "MModTester", "An mmod template detector.")
-;
+ECTO_CELL(mmod, mmod::MModTester, "MModTester", "An mmod template detector.");

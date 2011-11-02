@@ -11,7 +11,6 @@ include_directories(../src)
 ectomodule(mmod
    module.cpp
    MModModelInserter.cpp
-   MModModelLoader.cpp
    MModTester.cpp
    MModTrainer.cpp
    MModPersister.cpp
