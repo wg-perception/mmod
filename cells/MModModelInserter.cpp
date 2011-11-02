@@ -34,31 +34,32 @@ namespace mmod
     static void
     declare_params(ecto::tendrils& params)
     {
-      params.declare < std::string
-      > ("collection_models", "std::string The collection in which to store the models on the db", "models").required(
+      params.declare<std::string>("collection_models",
+                                  "std::string The collection in which to store the models on the db", "models").required(
           true);
-      params.declare < object_recognition::db::ObjectDbParameters > ("db_params", "The DB parameters").required(true);
-      params.declare < std::string > ("object_id", "The object id, to associate this frame with.").required(true);
-      params.declare < std::string
-      > ("model_json_params", "The parameters used for the model, as JSON.").required(true);
+      params.declare<object_recognition::db::ObjectDbParameters>("db_params", "The DB parameters").required(true);
+      params.declare<std::string>("object_id", "The object id, to associate this frame with.").required(true);
+      params.declare<std::string>("model_json_params", "The parameters used for the model, as JSON.").required(true);
     }
 
     static void
     declare_io(const ecto::tendrils& params, ecto::tendrils& inputs, ecto::tendrils& outputs)
     {
-      inputs.declare < mmod_objects > ("objects", "The objects.");
-      inputs.declare < mmod_filters > ("filters", "The filters.");
+      inputs.declare<mmod_objects>("objects", "The objects.");
+      inputs.declare<mmod_filters>("filters", "The filters.");
     }
 
     void
     configure(const ecto::tendrils& params, const ecto::tendrils& inputs, const ecto::tendrils& outputs)
     {
       object_id_ = params["object_id"];
-      db_.set_params(params.get < object_recognition::db::ObjectDbParameters > ("db_params"));
-      collection_models_ = params.get < std::string > ("collection_models");
-      params_ = params.get < std::string > ("model_json_params");
+      db_.set_params(params.get<object_recognition::db::ObjectDbParameters>("db_params"));
+      collection_models_ = params.get<std::string>("collection_models");
+      params_ = params.get<std::string>("model_json_params");
+    }
 
-    const std::string& model_type() const
+    const std::string&
+    model_type() const
     {
       static std::string s = "MMOD";
       return s;
@@ -67,8 +68,6 @@ namespace mmod
     int
     process(const ecto::tendrils& inputs, const ecto::tendrils& outputs, object_recognition::db::Document& doc)
     {
-      object_recognition::db::Document doc(db_, collection_models_);
-
       {
         std::stringstream objects_stream;
         boost::archive::binary_oarchive objects_archive(objects_stream);
