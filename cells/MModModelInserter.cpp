@@ -34,12 +34,6 @@ namespace mmod
     static void
     declare_params(ecto::tendrils& params)
     {
-      params.declare<std::string>("collection_models",
-                                  "std::string The collection in which to store the models on the db", "models").required(
-          true);
-      params.declare<object_recognition::db::ObjectDbParameters>("db_params", "The DB parameters").required(true);
-      params.declare<std::string>("object_id", "The object id, to associate this frame with.").required(true);
-      params.declare<std::string>("model_json_params", "The parameters used for the model, as JSON.").required(true);
     }
 
     static void
@@ -52,10 +46,6 @@ namespace mmod
     void
     configure(const ecto::tendrils& params, const ecto::tendrils& inputs, const ecto::tendrils& outputs)
     {
-      object_id_ = params["object_id"];
-      db_.set_params(params.get<object_recognition::db::ObjectDbParameters>("db_params"));
-      collection_models_ = params.get<std::string>("collection_models");
-      params_ = params.get<std::string>("model_json_params");
     }
 
     const std::string&
@@ -80,33 +70,11 @@ namespace mmod
         filters_archive << *filters_;
         doc.set_attachment_stream("filters", filters_stream);
       }
-      doc.set_value("object_id", *object_id_);
-
-      // Convert the parameters to a property tree and insert them
-      json_spirit::mObject params;
-      {
-        std::stringstream ssparams;
-        ssparams << params_;
-        json_spirit::mValue value;
-        json_spirit::read(ssparams, value);
-        params = value.get_obj();
-      }
-      params.erase("type");
-      doc.set_values("parameters", params);
-
-      doc.set_value("Type", "Model");
-      doc.set_value("ModelType", "LINEMOD");
-      std::cout << "Persisting" << std::endl;
-      doc.Persist();
 
       return ecto::OK;
     }
   private:
-    object_recognition::db::ObjectDb db_;
-    ecto::spore<DocumentId> object_id_;
-    CollectionName collection_models_;
     /** The JSON parameters used to compute the model */
-    std::string params_;
     ecto::spore<mmod_objects> objects_;
     ecto::spore<mmod_filters> filters_;
   };

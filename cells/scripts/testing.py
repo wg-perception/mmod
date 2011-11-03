@@ -5,10 +5,11 @@ import sys
 import couchdb
 from argparse import ArgumentParser
 from ecto_opencv.highgui import imshow
+from ecto_opencv import highgui
 from ecto_object_recognition import capture
 from object_recognition import models
 import mmod
-from ecto_object_recognition.object_recognition_db import ObjectDbParameters
+from ecto_object_recognition.object_recognition_db import ObjectDbParameters, DbDocuments
 from object_recognition.common.io.source import Source
 from object_recognition.common.io.sink import Sink
 from object_recognition.common.io.source import Source
@@ -68,9 +69,6 @@ if "__main__" == __name__:
     #visualize raw data
     fps = highgui.FPSDrawer()
     plasm.connect(
-          image >> fps[:],
-          fps[:] >> highgui.imshow('image', name='image')[:],
-          depth >> highgui.imshow('depth', name='depth')[:],
           mmod_tester['debug_image'] >> highgui.imshow('mmod debug', name='mmod depth')[:],
           )
     sched = ecto.schedulers.Singlethreaded(plasm)

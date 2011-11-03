@@ -25,9 +25,9 @@ namespace mmod
     void
     ModelDocumentsCallback(const Documents & db_documents)
     {
-      templates_->reserve(db_documents.size());
-      filters_->reserve(db_documents.size());
-      object_ids_->reserve(db_documents.size());
+      templates_.reserve(db_documents.size());
+      filters_.reserve(db_documents.size());
+      object_ids_.reserve(db_documents.size());
 
       // Re-load the data from the DB
       std::cout << "Loading models. This may take some time..." << std::endl;
@@ -37,15 +37,15 @@ namespace mmod
             std::cout << "Loading model for object id: " << object_id << std::endl;
             mmod_objects templates;
             document.get_attachment<mmod_objects>("templates", templates);
-            templates_->push_back(templates);
+            templates_.push_back(templates);
 
             // Store the id conversion
-            object_ids_->push_back(object_id);
+            object_ids_.push_back(object_id);
 
             // Store the 3d positions
             mmod_filters filters;
             document.get_attachment<mmod_filters>("filters", filters);
-            filters_->push_back(filters);
+            filters_.push_back(filters);
           }
     }
 
@@ -95,8 +95,6 @@ namespace mmod
       //      modesCD.push_back("Color");
       //      modesCD.push_back("Depth");
       //deserialize from file.
-      templates_ = i["templates"];
-      filters_ = i["filters"];
 
       // inputs
       image_ = i["image"];
@@ -123,10 +121,10 @@ namespace mmod
       FeatModes.push_back(gradfeat);
       //      FeatModes.push_back(colorfeat);
       //      FeatModes.push_back(depthfeat);
-      for (unsigned int i = 0; i < templates_->size(); ++i)
+      for (unsigned int i = 0; i < templates_.size(); ++i)
       {
-        mmod_objects & mmod_object = (*templates_)[i];
-        mmod_filters & mmod_filter = (*filters_)[i];
+        mmod_objects & mmod_object = templates_[i];
+        mmod_filters & mmod_filter = filters_[i];
 
         int numrawmatches = 0; //Number of matches before non-max suppression
         cout << "num_matches = " << numrawmatches << endl;
@@ -143,9 +141,9 @@ namespace mmod
       //TO DISPLAY MATCHES (NON-MAX SUPPRESSED)
       cv::Mat debug_image;
       image.copyTo(debug_image);
-      for (unsigned int i = 0; i < templates_->size(); ++i)
+      for (unsigned int i = 0; i < templates_.size(); ++i)
       {
-        mmod_objects & mmod_object = (*templates_)[i];
+        mmod_objects & mmod_object = templates_[i];
 
         mmod_object.draw_matches(debug_image); //draw results...
         mmod_object.cout_matches();
@@ -174,11 +172,11 @@ namespace mmod
     spore<cv::Mat> debug_image_;
 
     /** The filters */
-    ecto::spore<std::vector<mmod_filters> > filters_;
+    std::vector<mmod_filters> filters_;
     /** The templates */
-    ecto::spore<std::vector<mmod_objects> > templates_;
+    std::vector<mmod_objects> templates_;
     /** Matching between an OpenCV integer ID and the ids found in the JSON */
-    ecto::spore<std::vector<ObjectId> > object_ids_;
+    std::vector<ObjectId> object_ids_;
     /** The DB documents for the models */
     ecto::spore<Documents> model_documents_;
   };
