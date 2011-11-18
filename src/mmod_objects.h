@@ -187,7 +187,7 @@ public:
 	typedef std::map<std::string, std::multimap<int,int> > IndexOfViews; //(object, multimap index of <framenum,view index>)
 	IndexOfViews		ViewIndex;		// (obj, framenum => index of that view in mmod_feature)
 
-	mmod_filters(std::string modality) { mode = modality;};
+	mmod_filters(std::string modality = "") { mode = modality;};
 
 	//SERIALIZATION
     template<class Archive>
