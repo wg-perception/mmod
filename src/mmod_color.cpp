@@ -249,7 +249,7 @@ void gradients::computeGradients(const cv::Mat &Iin, cv::Mat &Icolorord, const c
 					angle = *pit2;
 				}
 			}
-			else if(*mit1 > *mit2)//mit1 is max
+			else //if(*mit1 > *mit2)//mit1 is max
 			{
 				if(*mit1 > *mit2) //mit1 is max
 				{
@@ -285,7 +285,7 @@ void gradients::computeGradients(const cv::Mat &Iin, cv::Mat &Icolorord, const c
 					angle = *pit2;
 				}
 			}
-			else if(*mit1 > *mit2)//mit1 is max
+			else //if(*mit1 > *mit2)//mit1 is max
 			{
 				if(*mit1 > *mit2) //mit1 is max
 				{
