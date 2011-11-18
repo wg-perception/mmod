@@ -36,7 +36,7 @@ namespace mmod
             ObjectId object_id = document.get_value<std::string>("object_id");
             std::cout << "Loading model for object id: " << object_id << std::endl;
             mmod_objects templates;
-            document.get_attachment<mmod_objects>("templates", templates);
+            document.get_attachment<mmod_objects>("objects", templates);
             templates_.push_back(templates);
 
             // Store the id conversion
@@ -68,14 +68,12 @@ namespace mmod
     static void
     declare_io(const tendrils& p, tendrils& i, tendrils& o)
     {
-      i.declare<std::vector<mmod_objects> >("templates", "The templates");
-      i.declare<std::vector<mmod_filters> >("filters", "The filters");
       i.declare<std::vector<ObjectId> >("ids", "The matching object ids");
 
-      i.declare<cv::Mat>("image", "An image. BGR image of type CV_8UC3").required(true);
-      i.declare<cv::Mat>("depth", "Depth image of type CV_16UC1").required(true);
+      i.declare(&MModTester::image_, "image", "An image. BGR image of type CV_8UC3").required(true);
+      i.declare(&MModTester::depth_, "depth", "Depth image of type CV_16UC1").required(true);
       //      i.declare<cv::Mat> ("mask", "Object mask of type CV_8UC1 or CV_8UC3").required(false);
-      o.declare<cv::Mat>("debug_image", "Debug image.");
+      o.declare(&MModTester::debug_image_, "debug_image", "Debug image.");
     }
 
     void
@@ -95,14 +93,6 @@ namespace mmod
       //      modesCD.push_back("Color");
       //      modesCD.push_back("Depth");
       //deserialize from file.
-
-      // inputs
-      image_ = i["image"];
-      //      mask_ = i["mask"];
-      depth_ = i["depth"];
-
-      //outputs
-      debug_image_ = o["debug_image"];
     }
 
     int

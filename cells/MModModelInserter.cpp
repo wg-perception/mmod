@@ -39,8 +39,8 @@ namespace mmod
     static void
     declare_io(const ecto::tendrils& params, ecto::tendrils& inputs, ecto::tendrils& outputs)
     {
-      inputs.declare<mmod_objects>("objects", "The objects.");
-      inputs.declare<mmod_filters>("filters", "The filters.");
+      inputs.declare(&ModelInserter_::objects_, "objects", "The objects.");
+      inputs.declare(&ModelInserter_::filters_,"filters", "The filters.");
     }
 
     void

@@ -45,7 +45,7 @@ if "__main__" == __name__:
     model_ids = []
     object_ids = set()
     for object_id in params['object_ids']:
-        for model_id in models.find_model_for_object(db, object_id, 'TOD'):
+        for model_id in models.find_model_for_object(db, object_id, 'MMOD'):
             model_ids.append(str(model_id))
             object_ids.add(object_id)
     model_documents = DbDocuments(db_params, model_ids)
@@ -62,9 +62,17 @@ if "__main__" == __name__:
     mmod_tester = MModTester(thresh_match=0.95,skip_x=8,skip_y=8, model_documents=model_documents)
     
     # Connect the detector to the source
+    pyr_img = mmod.Pyramid(n_levels=3)
+    pyr_depth = mmod.Pyramid(n_levels=3)
     for key in source.outputs.iterkeys():
         if key in mmod_tester.inputs.keys():
-            plasm.connect(source[key] >> mmod_tester[key])
+            if key == 'image':
+                plasm.connect([ source[key] >> pyr_img['image'],
+                               pyr_img['level_2'] >> mmod_tester[key] ])
+            elif key == 'depth':
+                plasm.connect([ source[key] >> pyr_depth['image'],
+                               pyr_depth['level_2'] >> mmod_tester[key] ],
+                              source[key] >> highgui.imshow('depth', name='depth')[:])
 
     #visualize raw data
     fps = highgui.FPSDrawer()

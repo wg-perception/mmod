@@ -1,0 +1,21 @@
+# info about the db
+db:
+  type: 'CouchDB'
+  root: 'http://bwl:5984'
+  collection: 'object_recognition'
+
+source:
+  type: ros_kinect
+  rgb_frame_id: '/camera_rgb_optical_frame'
+#  bag: /home/vrabaud/data/robot_power/poster_01.bag
+sink:
+  type: publisher
+
+pipeline1:
+  type: 'MMOD'
+  template_filter:
+    template: 0
+    filter: 0
+
+# The list of object_ids to analyze
+object_ids: "all"

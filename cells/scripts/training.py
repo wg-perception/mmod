@@ -54,7 +54,7 @@ for object_id in args.objects:
     mmod_persistance_ = mmod.MModPersister(filename_filter='filter_%s.txt'%str(object_id),
                                           filename_objects='objects_%s.txt'%str(object_id)
                                           )
-    mmod_model_inserter_ = mmod.ModelInserter(collection_models='object_recognition',object_id=str(object_id),
+    mmod_model_inserter_ = mmod.ModelInserter(collection='object_recognition',object_id=str(object_id),
                                           model_json_params='{"none":"none"}', db_params=ObjectDbParameters({'type':'CouchDB', 'root':args.db_root,
                                                                                                              'collection':'object_recognition'})
                                           )
