@@ -29,7 +29,7 @@ namespace mmod
    */
   /** Class inserting the MMOD models in the DB
    */
-  struct ModelInserter_
+  struct ModelInserterImpl: public object_recognition::db::bases::ModelInserterImpl
   {
     static void
     declare_params(ecto::tendrils& params)
@@ -58,11 +58,10 @@ namespace mmod
       params_ = params.get<std::string>("model_json_params");
     }
 
-    const std::string&
+    std::string
     model_type() const
     {
-      static std::string s = "MMOD";
-      return s;
+      return "MMOD";
     }
 
     int
@@ -112,9 +111,7 @@ namespace mmod
   };
 
   //for type prettiness
-  struct ModelInserter: object_recognition::db::bases::ModelInserter<ModelInserter_>
-  {
-  };
+  typedef object_recognition::db::bases::ModelInserterBase<ModelInserterImpl> ModelInserter;
 }
 
-ECTO_CELL(mmod, mmod::ModelInserter, "ModelInserter", "???");
+ECTO_CELL(mmod, mmod::ModelInserter, "ModelInserter", "Cell that saves an MMod model to the DB");
