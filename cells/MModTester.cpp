@@ -7,6 +7,7 @@
 
 #include "object_recognition/common/types.h"
 #include "object_recognition/db/db.h"
+#include "object_recognition/db/ModelReader.h"
 
 #include "mmod_objects.h"  //For train and test (includes mmod_mode.h, mmod_features.h, mmod_general.h
 #include "mmod_color.h"    //For depth and color processing (yes, I should change the name)
@@ -20,10 +21,10 @@ namespace mmod
 {
   using ecto::tendrils;
   using ecto::spore;
-  struct MModTester
+  struct MModTester : public object_recognition::db::bases::ModelReaderImpl
   {
     void
-    ModelDocumentsCallback(const Documents & db_documents)
+    ParameterCallback(const Documents & db_documents)
     {
       templates_.reserve(db_documents.size());
       filters_.reserve(db_documents.size());
@@ -60,9 +61,6 @@ namespace mmod
       p.declare<float>("color_filter_thresh", "The color filter threshold to confirm a match", 0.91);
       p.declare<int>("skip_x", "Control sparse testing of the feature images", 8);
       p.declare<int>("skip_y", "Control sparse testing of the feature images", 8);
-
-      p.declare(&MModTester::model_documents_, "model_documents", "The DB documents for the models to load").required(
-          true);
     }
 
     static void
@@ -79,9 +77,6 @@ namespace mmod
     void
     configure(const tendrils& p, const tendrils& i, const tendrils& o)
     {
-      model_documents_.set_callback(boost::bind(&MModTester::ModelDocumentsCallback, this, _1));
-      model_documents_.dirty(true);
-
       std::string filename;
       //parameters
       thresh_match_ = p["thresh_match"];
@@ -167,8 +162,6 @@ namespace mmod
     std::vector<mmod_objects> templates_;
     /** Matching between an OpenCV integer ID and the ids found in the JSON */
     std::vector<ObjectId> object_ids_;
-    /** The DB documents for the models */
-    ecto::spore<Documents> model_documents_;
   };
 }
-ECTO_CELL(mmod, mmod::MModTester, "MModTester", "An mmod template detector.");
+ECTO_CELL(mmod, object_recognition::db::bases::ModelReaderBase<mmod::MModTester>, "MModTester", "An mmod template detector.");
