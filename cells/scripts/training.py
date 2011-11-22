@@ -8,6 +8,7 @@ from object_recognition import models, dbtools
 import mmod
 from ecto_object_recognition.object_recognition_db import ObjectDbParameters
 
+N_LEVELS = 2
 
 def parse_args():
     import argparse
@@ -48,13 +49,13 @@ for object_id in args.objects:
     
     #allocate mmod trainer each time to keep it simple.
     mmod_trainer = mmod.MModTrainer(thresh_learn=0.97,object_id=str(object_id))
-    pyr_depth = mmod.Pyramid(n_levels=3)
-    pyr_image = mmod.Pyramid(n_levels=3)
-    pyr_mask = mmod.Pyramid(n_levels=3)
+    pyr_depth = mmod.Pyramid(n_levels=N_LEVELS)
+    pyr_image = mmod.Pyramid(n_levels=N_LEVELS)
+    pyr_mask = mmod.Pyramid(n_levels=N_LEVELS)
     mmod_persistance_ = mmod.MModPersister(filename_filter='filter_%s.txt'%str(object_id),
                                           filename_objects='objects_%s.txt'%str(object_id)
                                           )
-    mmod_model_inserter_ = mmod.ModelInserter(collection='object_recognition',object_id=str(object_id),
+    mmod_model_inserter_ = mmod.ModelWriter(collection='object_recognition',object_id=str(object_id),
                                           model_json_params='{"none":"none"}', db_params=ObjectDbParameters({'type':'CouchDB', 'root':args.db_root,
                                                                                                              'collection':'object_recognition'})
                                           )
@@ -71,9 +72,9 @@ for object_id in args.objects:
                   db_reader['depth'] >> pyr_depth['image'],
                   db_reader['image'] >> pyr_image['image'],
                   db_reader['mask'] >> pyr_mask['image'],
-                  pyr_depth['level_2'] >> mmod_trainer['depth'],
-                  pyr_image['level_2'] >> mmod_trainer['image'],
-                  pyr_mask['level_2'] >> mmod_trainer['mask'],
+                  pyr_depth['level_1'] >> mmod_trainer['depth'],
+                  pyr_image['level_1'] >> mmod_trainer['image'],
+                  pyr_mask['level_1'] >> mmod_trainer['mask'],
                   )
     
     #connect training debug visualization

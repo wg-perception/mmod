@@ -15,7 +15,7 @@
 #include "object_recognition/common/types.h"
 #include "object_recognition/db/db.h"
 #include "object_recognition/db/opencv.h"
-#include "object_recognition/db/ModelInserter.hpp"
+#include "object_recognition/db/ModelWriter.h"
 
 #include "mmod_features.h"
 #include "mmod_objects.h"
@@ -29,7 +29,7 @@ namespace mmod
    */
   /** Class inserting the MMOD models in the DB
    */
-  struct ModelInserterImpl: public object_recognition::db::bases::ModelInserterImpl
+  struct ModelWriterImpl: public object_recognition::db::bases::ModelWriterImpl
   {
     static void
     declare_params(ecto::tendrils& params)
@@ -39,8 +39,8 @@ namespace mmod
     static void
     declare_io(const ecto::tendrils& params, ecto::tendrils& inputs, ecto::tendrils& outputs)
     {
-      inputs.declare(&ModelInserterImpl::objects_, "objects", "The objects.");
-      inputs.declare(&ModelInserterImpl::filters_,"filters", "The filters.");
+      inputs.declare(&ModelWriterImpl::objects_, "objects", "The objects.");
+      inputs.declare(&ModelWriterImpl::filters_,"filters", "The filters.");
     }
 
     void
@@ -79,7 +79,7 @@ namespace mmod
   };
 
   //for type prettiness
-  typedef object_recognition::db::bases::ModelInserterBase<ModelInserterImpl> ModelInserter;
+  typedef object_recognition::db::bases::ModelWriterBase<ModelWriterImpl> ModelWriter;
 }
 
-ECTO_CELL(mmod, mmod::ModelInserter, "ModelInserter", "Cell that saves an MMod model to the DB");
+ECTO_CELL(mmod, mmod::ModelWriter, "ModelWriter", "Cell that saves an MMod model to the DB");

@@ -29,6 +29,8 @@ import subprocess
 
 from mmod import MModTester
 
+N_LEVELS = 2
+
 if "__main__" == __name__:
     '''
     Run mmod testing
@@ -68,10 +70,10 @@ if "__main__" == __name__:
         if key in mmod_tester.inputs.keys():
             if key == 'image':
                 plasm.connect([ source[key] >> pyr_img['image'],
-                               pyr_img['level_2'] >> mmod_tester[key] ])
+                               pyr_img['level_1'] >> mmod_tester[key] ])
             elif key == 'depth':
                 plasm.connect([ source[key] >> pyr_depth['image'],
-                               pyr_depth['level_2'] >> mmod_tester[key] ],
+                               pyr_depth['level_1'] >> mmod_tester[key] ],
                               source[key] >> highgui.imshow('depth', name='depth')[:])
 
     #visualize raw data
