@@ -8,7 +8,7 @@ from object_recognition import models, dbtools
 import mmod
 from ecto_object_recognition.object_recognition_db import ObjectDbParameters
 
-N_LEVELS = 2
+N_LEVEL_MAX = 2
 
 def parse_args():
     import argparse
@@ -40,7 +40,8 @@ for object_id in args.objects:
 
     plasm = ecto.Plasm()
     #the db_reader transforms observation id into a set of image,depth,mask,K,R,T
-    db_reader = capture.ObservationReader("db_reader", db_url=args.db_root)
+    db_params = ObjectDbParameters(dict(type=args.db_type, root=args.db_root, collection=args.db_collection))
+    db_reader = capture.ObservationReader("db_reader", db_params=db_params)
     #this iterates over all of the observation ids.
     observation_dealer = ecto.Dealer(tendril=db_reader.inputs.at('observation'),
                                      iterable=obs_ids)
@@ -49,16 +50,14 @@ for object_id in args.objects:
     
     #allocate mmod trainer each time to keep it simple.
     mmod_trainer = mmod.MModTrainer(thresh_learn=0.97,object_id=str(object_id))
-    pyr_depth = mmod.Pyramid(n_levels=N_LEVELS)
-    pyr_image = mmod.Pyramid(n_levels=N_LEVELS)
-    pyr_mask = mmod.Pyramid(n_levels=N_LEVELS)
+    pyr_depth = mmod.Pyramid(n_levels=N_LEVEL_MAX)
+    pyr_image = mmod.Pyramid(n_levels=N_LEVEL_MAX)
+    pyr_mask = mmod.Pyramid(n_levels=N_LEVEL_MAX)
     mmod_persistance_ = mmod.MModPersister(filename_filter='filter_%s.txt'%str(object_id),
                                           filename_objects='objects_%s.txt'%str(object_id)
                                           )
-    mmod_model_inserter_ = mmod.ModelWriter(collection='object_recognition',object_id=str(object_id),
-                                          model_json_params='{"none":"none"}', db_params=ObjectDbParameters({'type':'CouchDB', 'root':args.db_root,
-                                                                                                             'collection':'object_recognition'})
-                                          )
+    mmod_model_inserter_ = mmod.ModelWriter(object_id=str(object_id), model_json_params='{"none":"none"}',
+                                            db_params=db_params)
 
     mmod_persistance = ecto.If('Persistance',
                                cell = mmod_persistance_
@@ -72,9 +71,9 @@ for object_id in args.objects:
                   db_reader['depth'] >> pyr_depth['image'],
                   db_reader['image'] >> pyr_image['image'],
                   db_reader['mask'] >> pyr_mask['image'],
-                  pyr_depth['level_1'] >> mmod_trainer['depth'],
-                  pyr_image['level_1'] >> mmod_trainer['image'],
-                  pyr_mask['level_1'] >> mmod_trainer['mask'],
+                  pyr_depth['level_' + str(N_LEVEL_MAX-1)] >> mmod_trainer['depth'],
+                  pyr_image['level_' + str(N_LEVEL_MAX-1)] >> mmod_trainer['image'],
+                  pyr_mask['level_' + str(N_LEVEL_MAX-1)] >> mmod_trainer['mask'],
                   )
     
     #connect training debug visualization

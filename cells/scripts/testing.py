@@ -29,7 +29,7 @@ import subprocess
 
 from mmod import MModTester
 
-N_LEVELS = 2
+N_LEVEL_MAX = 2
 
 if "__main__" == __name__:
     '''
@@ -61,7 +61,7 @@ if "__main__" == __name__:
     sink = Sink.parse_arguments(args, db, db_params, object_ids)
 
     #hook up the tester
-    mmod_tester = MModTester(thresh_match=0.95,skip_x=8,skip_y=8, model_documents=model_documents)
+    mmod_tester = MModTester(thresh_match=0.93,color_filter_thresh=0.8,skip_x=8,skip_y=8, model_documents=model_documents)
     
     # Connect the detector to the source
     pyr_img = mmod.Pyramid(n_levels=3)
@@ -70,10 +70,10 @@ if "__main__" == __name__:
         if key in mmod_tester.inputs.keys():
             if key == 'image':
                 plasm.connect([ source[key] >> pyr_img['image'],
-                               pyr_img['level_1'] >> mmod_tester[key] ])
+                               pyr_img['level_' + str(N_LEVEL_MAX-1)] >> mmod_tester[key] ])
             elif key == 'depth':
                 plasm.connect([ source[key] >> pyr_depth['image'],
-                               pyr_depth['level_1'] >> mmod_tester[key] ],
+                               pyr_depth['level_' + str(N_LEVEL_MAX-1)] >> mmod_tester[key] ],
                               source[key] >> highgui.imshow('depth', name='depth')[:])
 
     #visualize raw data
