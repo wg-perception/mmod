@@ -10,7 +10,7 @@ include_directories(../src)
 
 ectomodule(mmod
    module.cpp
-   MModModelWriter.cpp
+   MModModelFiller.cpp
    MModTester.cpp
    MModTrainer.cpp
    MModPersister.cpp
